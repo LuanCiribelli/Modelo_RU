@@ -1,3 +1,16 @@
+# Modelo do Restaurante Universitario
+
+## Luan Reis e Arthur
+
+ ### Definição de Parâmetros e Ambiente
+
+#- **Entradas**: 2 conjuntos de 2 catracas cada
+#- **Bandejas**: Cada entrada leva a 3 bandejas diferentes
+#- **Refeições**: Desjejum, Almoço, Jantar
+#- **Objetivo**: Reduzir filas e lotação no restaurante universitário
+
+
+
 # 1. Imports
 from mesa import Agent, Model
 from mesa.time import RandomActivation
@@ -77,6 +90,16 @@ class StudentAgent(Agent):
 
 
     def move(self):
+        # Check for an agent in front
+        x, y = self.pos
+        agent_in_front = self.model.grid.get_cell_list_contents([(x+1, y)])  # assuming the queue moves horizontally to the right
+        
+        # If the agent in front exists and is a student and isn't moving, then don't move
+        if agent_in_front and isinstance(agent_in_front[0], StudentAgent) and agent_in_front[0].blocked_steps >= MAX_BLOCKED_STEPS:
+            self.blocked_steps += 1
+            return
+
+        # Else, continue with the existing logic
         goal = self.determine_goal()
         if self.is_at_goal(goal):
             self.reached_goal(goal)
@@ -84,6 +107,7 @@ class StudentAgent(Agent):
             best_step = self.get_best_step(goal)
             if best_step:
                 self.model.grid.move_agent(self, best_step)
+
 
     def is_at_goal(self, goal):
         return self.pos == goal
