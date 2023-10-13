@@ -1,6 +1,9 @@
 from mesa import Agent
-from utilities import manhattan_distance
+from utilities import manhattan_distance, MovementUtils
 from constants import *
+from mapa.mapa_RU import CellType
+ 
+
 
 
 
@@ -8,106 +11,57 @@ class StudentAgent(Agent):
     def __init__(self, unique_id, model, x, y):
         super().__init__(unique_id, model)
         self.pos = (x, y)
-        self.state = "QUEUEING_TURNSTILE"
-        self.blocked_steps = 0
+        self.state = "SEARCHING_TRAY"
         self.waiting_time = 0
-        self.steps_in_current_state = 0
-    
+        self.blocked_steps = 0
+
     def determine_goal(self):
-        if self.state == "QUEUEING_TURNSTILE":
-            tray = self.model.pathfinding.nearest_tray(self) 
-            if manhattan_distance(self.pos, tray) < DISTANCE_THRESHOLD:
-                self.state = "SEARCHING_TRAY"
-                return tray
+        if self.state == "SEARCHING_TRAY":
+            return self.model.pathfinding.nearest_tray(self)
+        elif self.state == "WAITING_AT_TRAY":
+            return self.pos
+        elif self.state == "EXITING":
+            return self.model.pathfinding.nearest_exit(self)
 
-        goal_functions = {
-            "QUEUEING_TURNSTILE": self.get_turnstile_goal,
-            "SEARCHING_TRAY": lambda: self.model.pathfinding.nearest_tray(self),
-            "EXITING": lambda: self.model.pathfinding.nearest_exit(self)
+    def move_towards(self, goal):
+        valid_moves = self.model.movement_utils.valid_moves(self, goal, "StudentAgent")
+        if valid_moves:
+            best_step = min(valid_moves, key=lambda step: manhattan_distance(step, goal))
+            self.model.grid.move_agent(self, best_step)
+            self.blocked_steps = 0  # Reset blocked_steps if a valid move is found
+        else:
+            self.blocked_steps += 1  # Increment blocked_steps if no valid move
 
-        }
-
-        return goal_functions.get(self.state, lambda: self._unknown_state_error())()
-
-    def get_turnstile_goal(self):
-        return (self.model.width - 1, self.pos[1])
-    
-    def _unknown_state_error(self):
-        raise ValueError(f"Unknown state: {self.state}")  # Point 3 addressed here
 
     def reached_goal(self, goal):
-        if self.state == "QUEUEING_TURNSTILE":
-            self.state = "SEARCHING_TRAY"
-        elif self.state == "SEARCHING_TRAY":
+        if self.state == "SEARCHING_TRAY":
+            self.state = "WAITING_AT_TRAY"
+        elif self.state == "WAITING_AT_TRAY":
             self.waiting_time += 1
-            if self.waiting_time >= WAITING_TIME_THRESHOLD:  
-                self.waiting_time = 0
+            if self.waiting_time >= WAITING_TIME_THRESHOLD:
                 self.state = "EXITING"
         elif self.state == "EXITING":
-            self.model.grid.remove_agent(self)
-            self.model.schedule.remove(self)
+            current_cell_contents = self.model.grid.get_cell_list_contents([self.pos])
+            if any(content.type == "S" for content in current_cell_contents if hasattr(content, 'type')):
+                self.model.grid.remove_agent(self)
+                self.model.schedule.remove(self)
 
-    
-    def get_best_step(self, goal):
-        valid_moves = self.model.movement_utils.valid_moves(self, goal)
-        if not valid_moves:
-            self.blocked_steps += 1
-            return None
-        return min(valid_moves, key=lambda step: manhattan_distance(step, goal))
-
-
-    def move(self):
-        # Check for an agent in front
-        x, y = self.pos
-        agent_in_front = self.model.grid.get_cell_list_contents([(x+1, y)])  # assuming the queue moves horizontally to the right
-        
-        # If the agent in front exists and is a student and isn't moving, then don't move
-        if agent_in_front and isinstance(agent_in_front[0], StudentAgent) and agent_in_front[0].blocked_steps >= MAX_BLOCKED_STEPS:
-            self.blocked_steps += 1
-            return
-
-        # Else, continue with the existing logic
-        goal = self.determine_goal()
-        if self.is_at_goal(goal):
-            self.reached_goal(goal)
+    def step(self):
+        if self.state != "WAITING_AT_TRAY":
+            goal = self.determine_goal()
+            if self.is_at_goal(goal):
+                self.reached_goal(goal)
+            else:
+                self.move_towards(goal)
         else:
-            best_step = self.get_best_step(goal)
-            if best_step:
-                self.model.grid.move_agent(self, best_step)
-
+            self.reached_goal(self.pos)
 
     def is_at_goal(self, goal):
         return self.pos == goal
 
 
-    def step(self):
-        "Defines the action taken by the student agent in each step."
-        self.steps_in_current_state += 1
-        if self.blocked_steps > MAX_BLOCKED_STEPS:
-            pass
-        if self.state == "QUEUEING_TURNSTILE" and self.steps_in_current_state > WAITING_TIME_THRESHOLD: 
-            self.state = "SEARCHING_TRAY"
-            self.steps_in_current_state = 0
-
-        self.move()
 
 
-class MovementUtils:
-    def __init__(self, model):
-        self.model = model
-
-    @staticmethod
-    def valid_moves(agent, goal):
-        x, y = agent.pos
-        possible_steps = [(x+dx, y+dy) for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)] 
-                          if 0 <= x+dx < agent.model.width and 0 <= y+dy < agent.model.height 
-                          and manhattan_distance((x+dx, y+dy), goal) < manhattan_distance((x, y), goal)
-                          and all(content.type != "Parede" for content in agent.model.grid.get_cell_list_contents([(x+dx, y+dy)]) if hasattr(content, 'type'))
-                          and not any(isinstance(content, StudentAgent) for content in agent.model.grid.get_cell_list_contents([(x+dx, y+dy)]))]
-        return possible_steps
-
-    def is_valid_cell(self, cell_contents):
-        return all(content.type != "Parede" for content in cell_contents if hasattr(content, 'type')) and not any(isinstance(content, StudentAgent) for content in cell_contents)
 
 
 class Pathfinding:

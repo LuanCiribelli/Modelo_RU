@@ -9,8 +9,8 @@ from mesa.datacollection import DataCollector
 
 from mapa.mapa_RU import  CellType
 from constants import *
-from agents import StudentAgent, MovementUtils, Pathfinding, StaticAgent
-
+from agents import StudentAgent, Pathfinding, StaticAgent
+from utilities import MovementUtils
 
 
 
@@ -44,7 +44,7 @@ class RestaurantModel(Model):
         self.external_grid = external_grid
         self.movement_utils = MovementUtils(self)
         self.pathfinding = Pathfinding(self, self.movement_utils)
-
+        self.steps_since_last_student = 0
         self.datacollector = DataCollector({
             "Average_Waiting_Time": lambda m: sum([agent.waiting_time for agent in m.schedule.agents if isinstance(agent, StudentAgent)]) / (len([agent for agent in m.schedule.agents if isinstance(agent, StudentAgent)]) or 1)
         })
@@ -53,6 +53,7 @@ class RestaurantModel(Model):
         self.schedule = RandomActivation(self)
         self.time = 0
         self.error_message = None
+        self.next_id = 0
 
         for y, row in enumerate(external_grid):
             for x, cell_value in enumerate(row):
@@ -66,20 +67,52 @@ class RestaurantModel(Model):
 
     def step(self):
         """Defines the action taken in each time step of the simulation."""
+        print("Método step foi chamado!")
+        
+        # Se houver uma mensagem de erro, interrompa a simulação.
         if self.error_message:
+            print(self.error_message)
             return
+
         self.time += 1
         self.schedule.step()
+
+        # No primeiro step ou a cada 8 steps, adicione um estudante.
+        if self.time == 1 or self.time % 8 == 0:
+            self.add_new_student()
+
         self.datacollector.collect(self)
+    
+        # Verifique se todos os estudantes estão bloqueados.
         all_students_blocked = all([student.blocked_steps >= MAX_BLOCKED_STEPS for student in self.schedule.agents if isinstance(student, StudentAgent)])
         if all_students_blocked:
             self.error_message = "Erro, todos os estudantes presos, modelo parado"
+            print(self.error_message)
             return
+
+        # Se não houver mais nenhum StudentAgent, pare a simulação.
         if not any(isinstance(agent, StudentAgent) for agent in self.schedule.agents):
             self.running = False
 
+    def get_next_id(self):
+        self.next_id += 1
+        return self.next_id
 
+    def add_new_student(self):
+            print("Tentando adicionar novo estudante...")
+            turnstile_coords = [(0, 0), (0, 1)]  # Coordenadas das catracas
+            entry_coords = [(x+1, y) for x, y in turnstile_coords]  # Coordenadas à direita das catracas
+          
+            # Escolhe uma entrada aleatória das disponíveis
+            chosen_entry = self.random.choice(entry_coords)
 
+            # Verifica se a entrada escolhida está vazia
+            if not self.grid.get_cell_list_contents([chosen_entry]):
+                print(f"Adicionando estudante em {chosen_entry}...")
+                student_id = self.get_next_id()
+                student = StudentAgent(student_id, self, *chosen_entry)
+                self.grid.place_agent(student, chosen_entry)
+                self.schedule.add(student)
 def agent_portrayal(agent):
     """Defines the visual portrayal of agents in the simulation."""
     if isinstance(agent, StudentAgent):
