@@ -4,10 +4,10 @@
 from mesa import Model
 from mesa.time import RandomActivation
 from mesa.space import MultiGrid
-from mesa.visualization.modules import CanvasGrid, TextElement
+from mesa.visualization.modules import  TextElement
 from mesa.datacollection import DataCollector
 
-from mapa.mapa_RU import GridConfig, CellType
+from mapa.mapa_RU import  CellType
 from constants import *
 from agents import StudentAgent, MovementUtils, Pathfinding, StaticAgent
 

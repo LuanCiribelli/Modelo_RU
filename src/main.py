@@ -12,7 +12,8 @@
 from mesa.visualization.ModularVisualization import ModularServer
 from model import RestaurantModel, ModelText, agent_portrayal
 from mapa.mapa_RU import GridConfig
-from mesa.visualization.modules import CanvasGrid, TextElement
+from mesa.visualization.modules import CanvasGrid
+from utilities import *
 
 if __name__ == "__main__":
     external_grid = GridConfig.get_grid()

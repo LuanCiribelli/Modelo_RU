@@ -1,6 +1,6 @@
 from mesa import Agent
 from utilities import manhattan_distance
-from constants import WAITING_TIME_THRESHOLD, MAX_BLOCKED_STEPS
+from constants import *
 
 
 
