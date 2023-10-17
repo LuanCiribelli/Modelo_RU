@@ -14,14 +14,21 @@ class StudentAgent(Agent):
         self.state = "SEARCHING_TRAY"
         self.waiting_time = 0
         self.blocked_steps = 0
+        self.visited_groups = set()
 
-    def determine_goal(self):
+    def reached_goal(self, goal):
         if self.state == "SEARCHING_TRAY":
-            return self.model.pathfinding.nearest_tray(self)
-        elif self.state == "WAITING_AT_TRAY":
-            return self.pos
+            tray_cell_contents = self.model.grid.get_cell_list_contents([goal])
+            for content in tray_cell_contents:
+                if content.type == "Bandeja" and content.portions > 0:
+                    content.portions -= 1
+            self.state = "EXITING"
         elif self.state == "EXITING":
-            return self.model.pathfinding.nearest_exit(self)
+            current_cell_contents = self.model.grid.get_cell_list_contents([self.pos])
+            if any(content.type == "S" for content in current_cell_contents if hasattr(content, 'type')):
+                self.model.grid.remove_agent(self)
+                self.model.schedule.remove(self)
+
 
     def move_towards(self, goal):
         valid_moves = self.model.movement_utils.valid_moves(self, goal, "StudentAgent")
@@ -32,10 +39,23 @@ class StudentAgent(Agent):
         else:
             self.blocked_steps += 1  # Increment blocked_steps if no valid move
 
+    def determine_goal(self):
+        """ Determines the current goal of the student based on its state. """
+        if self.state == "SEARCHING_TRAY":
+            return self.model.pathfinding.nearest_tray(self)
+        elif self.state == "WAITING_AT_TRAY":
+            return self.pos
+        elif self.state == "EXITING":
+            return self.model.pathfinding.nearest_exit(self)
 
     def reached_goal(self, goal):
         if self.state == "SEARCHING_TRAY":
-            self.state = "WAITING_AT_TRAY"
+            tray_cell_contents = self.model.grid.get_cell_list_contents([goal])
+            for content in tray_cell_contents:
+                if hasattr(content, 'type') and content.type == "Bandeja" and content.portions > 0: 
+                    content.portions -= 1
+                    self.visited_groups.add(goal)
+            self.state = "EXITING"
         elif self.state == "WAITING_AT_TRAY":
             self.waiting_time += 1
             if self.waiting_time >= WAITING_TIME_THRESHOLD:
@@ -84,24 +104,37 @@ class Pathfinding:
         return self.nearest(agent, CellType.EXIT)
 
     def nearest_tray(self, agent):
-        return self.nearest(agent, CellType.TRAY)
+        # First, get all tray coordinates
+        tray_coords = [(i, j) for i, row in enumerate(self.model.external_grid)
+                    for j, cell in enumerate(row) if cell == CellType.TRAY]
+        
+        # Filter out tray groups already visited by this student
+        unvisited_tray_coords = [coord for coord in tray_coords if coord not in agent.visited_groups]
+        
+        if not unvisited_tray_coords:  # All tray groups visited
+            return None
+        
+        # Find the nearest unvisited tray
+        nearest_unvisited_tray = min(unvisited_tray_coords, key=lambda pos: manhattan_distance(agent.pos, pos))
+        
+        return nearest_unvisited_tray
+
 
 
 class StaticAgent(Agent):
-    """
-    Agent representing static items in the restaurant like walls, turnstiles, etc.
-    """
-    
-    def __init__(self, unique_id, model, x, y, agent_type):
-        """
-        Initialize a StaticAgent with its position and type.
-        
-        Args:
-        - unique_id: A unique identifier for the agent.
-        - model: The model instance in which the agent exists.
-        - x, y: The agent's coordinates on the grid.
-        - agent_type: The type of the static agent (e.g., 'Parede' for Wall).
-        """
+    def __init__(self, unique_id, model, x, y, agent_type, content=None):
         super().__init__(unique_id, model)
         self.pos = (x, y)
         self.type = agent_type
+        self.content = content
+        
+        if agent_type == "Bandeja":
+            if content == "vegan":
+                self.portions = VEGAN_TRAY_PORTIONS
+            elif content == "meat":
+                self.portions = MEAT_TRAY_PORTIONS
+            else:
+                self.portions = DEFAULT_TRAY_PORTIONS
+        else:
+            self.portions = None
+

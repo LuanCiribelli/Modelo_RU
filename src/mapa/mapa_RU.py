@@ -8,6 +8,10 @@ class CellType(Enum):
     WALL = 'P'
     TRAY = 'B'
     EXIT = 'S'
+    JUICE = 'A'
+    SPICES = 'T'
+    DESSERT = 'D'
+    TABLE = 'M'
 
 class GridConfig:
 

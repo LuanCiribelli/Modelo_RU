@@ -35,7 +35,11 @@ class RestaurantModel(Model):
         CellType.TURNSTILE: 'Catraca',
         CellType.WALL: 'Parede',
         CellType.TRAY: 'Bandeja',
-        CellType.EXIT: 'Saida'
+        CellType.EXIT: 'Saida',
+        CellType.JUICE: 'Suco',
+        CellType.SPICES: 'Tempero',
+        CellType.DESSERT: 'Sobremesa',
+        CellType.TABLE: 'Mesa',
     }
 
     def __init__(self, external_grid):
@@ -60,7 +64,7 @@ class RestaurantModel(Model):
                 if cell_value == CellType.STUDENT:
                     student = StudentAgent((x, y), self, x, y)
                     self.grid.place_agent(student, (x, y))
-                    self.schedule.add(student)
+                    self.schedule.add(student)             
                 elif cell_value in self.AGENT_TYPE_MAPPING:
                     agent_type = self.AGENT_TYPE_MAPPING[cell_value]
                     self.grid.place_agent(StaticAgent((x, y), self, x, y, agent_type), (x, y))
@@ -100,8 +104,8 @@ class RestaurantModel(Model):
 
     def add_new_student(self):
             print("Tentando adicionar novo estudante...")
-            turnstile_coords = [(0, 0), (0, 1)]  # Coordenadas das catracas
-            entry_coords = [(x+1, y) for x, y in turnstile_coords]  # Coordenadas à direita das catracas
+            turnstile_coords = [(0, 0), (0, 1),(61,0),(61,1)]  # Coordenadas das catracas
+            entry_coords = [(1, 0), (1, 1),(60,0),(60,1) ]  # Coordenadas à direita das catracas
           
             # Escolhe uma entrada aleatória das disponíveis
             chosen_entry = self.random.choice(entry_coords)
@@ -113,6 +117,8 @@ class RestaurantModel(Model):
                 student = StudentAgent(student_id, self, *chosen_entry)
                 self.grid.place_agent(student, chosen_entry)
                 self.schedule.add(student)
+
+
 def agent_portrayal(agent):
     """Defines the visual portrayal of agents in the simulation."""
     if isinstance(agent, StudentAgent):
@@ -129,22 +135,36 @@ def agent_portrayal(agent):
             "Layer": 0,
             "r": 0.5
         }
+    else:  # This covers all other types of agents, including trays.
+        shape_colors = {
+            "Catraca": "gray",
+            "Parede": "black",
+            "Bandeja": "green",  # Default color, but can be overridden below
+            "Saida": "red",
+            "Suco": "blue",
+            "Tempero": "purple",
+            "Sobremesa": "gold",
+            "Mesa": "#766c6a",
+        }
 
-    shape_colors = {
-        "Catraca": "gray",
-        "Parede": "black",
-        "Bandeja": "green",
-        "Saida": "red"
-    }
+        # Override the color for trays based on content and portions.
+        if agent.type == "Bandeja":
+            if agent.content == "vegan":
+                shape_colors["Bandeja"] = "lightgreen"
+            elif agent.content == "meat":
+                shape_colors["Bandeja"] = "brown"
+            if agent.portions == 0:
+                shape_colors["Bandeja"] = "red"
 
-    return {
-        "Shape": "rect",
-        "Color": shape_colors.get(agent.type, "white"),
-        "Filled": "true",
-        "Layer": 1,
-        "w": 1,
-        "h": 1
-    }
+        return {
+            "Shape": "rect",
+            "Color": shape_colors.get(agent.type, "white"),
+            "Filled": "true",
+            "Layer": 1,
+            "w": 1,
+            "h": 1
+        }
+
 
 
 
