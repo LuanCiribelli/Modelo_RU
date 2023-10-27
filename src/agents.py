@@ -1,12 +1,40 @@
 from mesa import Agent
 from constants import *
 from mapa.mapa_RU import CellType
-from constants import *
+
+def manhattan_distance(pos1, pos2):
+    return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
+
+class StaticAgent(Agent):
+    def __init__(self, unique_id, model, pos_x, pos_y, agent_type, content=None):
+        super().__init__(unique_id, model)
+        self.x = pos_x
+        self.y = pos_y
+        self.type = agent_type
+        self.content = self._determine_content(agent_type)
+
+    def _determine_content(self, agent_type):
+        if agent_type == "EMPTY_TRAY":
+            return "EMPTY"
+        elif "Tray" in agent_type:
+            self.food_count = DEFAULT_TRAY_PORTIONS
+            return agent_type.split('_')[0]
+        else:
+            return None
+
+    def refill(self):
+        if "Tray" in self.type:
+            self.food_count = DEFAULT_TRAY_PORTIONS
+            print(f"Refilled {self.type} at position {self.x}, {self.y}")
 
 
 class StudentAgent(Agent):
-    STATES = ["GOING_TO_RICE_TRAY", "GOING_TO_BROWN_RICE_TRAY","GOING_TO_BEANS_TRAY","GOING_TO_GUARN_TRAY","GOING_TO_VEG_TRAY" ,"GOING_TO_MEAT_TRAY",
-               "GOING_TO_SAL_TRAY","GOING_TO_TALHER_TRAY","GOING_TO_JUICE", "GOING_TO_SPICES", "GOING_TO_DESSERT", "GOING_TO_TABLE", "EXITING"]
+    STATES = [
+        "GOING_TO_RICE_TRAY", "GOING_TO_BROWN_RICE_TRAY","GOING_TO_BEANS_TRAY",
+        "GOING_TO_GUARN_TRAY","GOING_TO_VEG_TRAY","GOING_TO_MEAT_TRAY",
+        "GOING_TO_SAL_TRAY","GOING_TO_TALHER_TRAY","GOING_TO_JUICE",
+        "GOING_TO_SPICES", "GOING_TO_DESSERT", "GOING_TO_TABLE", "EXITING"
+    ]
     
     def __init__(self, unique_id, model, x, y):
         super().__init__(unique_id, model)
@@ -15,6 +43,12 @@ class StudentAgent(Agent):
         self.waiting_time = 0
         self.blocked_steps = 0
         self.visited_groups = set()
+        self.current_goal = None
+        self.current_path = None
+        self._initialize_food_attributes()
+        #print(f"StudentAgent {unique_id} initialized at ({x}, {y}) ")
+
+    def _initialize_food_attributes(self):
         self.got_rice = False
         self.got_beans = False
         self.got_meat = False
@@ -22,92 +56,210 @@ class StudentAgent(Agent):
         self.got_talheres = False
     
     def move_towards(self, goal):
-        path = self.a_star_pathfinding(self.pos, goal)
-        if path:
-            next_step = path[1]
-            self.model.grid.move_agent(self, next_step)
-            self.blocked_steps = 0
-        else:
-            self.blocked_steps += 1
+        if self.current_path and len(self.current_path) > 1:
+            next_step = self.current_path[1]
+            
+            # Check if next step is not occupied by another agent
+            if not any(isinstance(obj, (StudentAgent, StaticAgent)) for obj in self.model.grid.get_cell_list_contents([next_step])):
+                self.model.grid.move_agent(self, next_step)
+                self.blocked_steps = 0
+                self.current_path.pop(0)  # Remove the step we just took
+            else:
+                self.blocked_steps += 1
+                print(f"Agent {self.unique_id} is blocked.")
+        else:              
+            self.current_path = self.a_star_pathfinding(self.pos, goal)
+            print(f"Agent {self.unique_id} recalculating path: {self.current_path}")
+
+            # If still no path is found, use collision avoidance
+            if not self.current_path:
+                print(f"Agent {self.unique_id} using collision avoidance.")
+                possible_steps = [(self.pos[0] + dx, self.pos[1] + dy) for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]]
+                possible_steps = [step for step in possible_steps if not any(isinstance(obj, (StudentAgent, StaticAgent)) for obj in self.model.grid.get_cell_list_contents([step]))]
+                next_step = min(possible_steps, key=lambda step: manhattan_distance(step, goal), default=None)
+                if next_step:
+                    self.model.grid.move_agent(self, next_step)
+                    self.blocked_steps = 0
+                else:
+                    self.blocked_steps += 1
+
+    
+    
 
 
     def determine_goal(self):
-            if self.state == "GOING_TO_RICE_TRAY":
-                return min(self.model.locations_cache['rice_trays'], key=lambda pos: manhattan_distance(self.pos, pos))
-            elif self.state == "GOING_TO_BROWN_RICE_TRAY":
-                return min(self.model.locations_cache['brown_rice_trays'], key=lambda pos: manhattan_distance(self.pos, pos))
-            elif self.state == "GOING_TO_BEANS_TRAY":
-                return min(self.model.locations_cache['beans_trays'], key=lambda pos: manhattan_distance(self.pos, pos))
-            elif self.state == "GOING_TO_GUARN_TRAY":
-                return min(self.model.locations_cache['guarn_trays'], key=lambda pos: manhattan_distance(self.pos, pos))
-            elif self.state == "GOING_TO_VEG_TRAY":
-                return min(self.model.locations_cache['veg_trays'], key=lambda pos: manhattan_distance(self.pos, pos))
-            elif self.state == "GOING_TO_MEAT_TRAY":
-                return min(self.model.locations_cache['meat_trays'], key=lambda pos: manhattan_distance(self.pos, pos))
-            elif self.state == "GOING_TO_SAL_TRAY":
-                return min(self.model.locations_cache['sal_trays'], key=lambda pos: manhattan_distance(self.pos, pos))
-            elif self.state == "GOING_TO_TALHER_TRAY":
-                return min(self.model.locations_cache['talher_trays'], key=lambda pos: manhattan_distance(self.pos, pos))
-            elif self.state == "GOING_TO_JUICE":
-                nearest_juice = min(self.model.locations_cache['juices'], key=lambda pos: manhattan_distance(self.pos, pos))
-                return self.get_adjacent_empty_cell(nearest_juice)
-            elif self.state == "GOING_TO_SPICES":
-                return min(self.model.locations_cache['spices'], key=lambda pos: manhattan_distance(self.pos, pos))
-            elif self.state == "GOING_TO_DESSERT":
-                return min(self.model.locations_cache['desserts'], key=lambda pos: manhattan_distance(self.pos, pos))
-            elif self.state == "GOING_TO_TABLE":
-                return self.random.choice(self.model.locations_cache['tables'])
-            elif self.state == "EXITING":
-                return min(self.model.locations_cache['exits'], key=lambda pos: manhattan_distance(self.pos, pos))
-            else:
-                return self.pos  # Default case if an unknown state
+        tray_goals = [
+            "GOING_TO_RICE_TRAY", "GOING_TO_BROWN_RICE_TRAY","GOING_TO_BEANS_TRAY",
+            "GOING_TO_GUARN_TRAY","GOING_TO_VEG_TRAY","GOING_TO_MEAT_TRAY",
+            "GOING_TO_SAL_TRAY","GOING_TO_TALHER_TRAY"
+        ]
 
-    def get_adjacent_empty_cell(self, target_pos):
-        x, y = target_pos
-        possible_adjacent_cells = [(x+dx, y+dy) for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]
-                                if 0 <= x+dx < self.model.width and 0 <= y+dy < self.model.height]
-        for cell in possible_adjacent_cells:
-            if not self.model.grid.get_cell_list_contents([cell]):
-                return cell
-        return self.pos  # Default: return the agent's own position if no adjacent empty cell found
+        if self.state in tray_goals:
+            tray_name = self.state.replace("GOING_TO_", "").lower()
+            goal = self._goal_for_tray(tray_name)
+            return goal
+        else:  
+         return self._goal_for_special_state()
 
-    
-    def reached_goal(self,goal):
-        # Update the boolean values based on current state
-        if self.state == "GOING_TO_RICE_TRAY":
-            self.got_rice = True
-        elif self.state == "GOING_TO_BEANS_TRAY":
-            self.got_beans = True
-        elif self.state == "GOING_TO_MEAT_TRAY":
-            self.got_meat = True
-        elif self.state == "GOING_TO_SAL_TRAY":
-            self.got_salad = True
-        elif self.state == "GOING_TO_TALHER_TRAY":
-            self.got_talheres = True
-            
-        # Only allow transition to juice or further states if all items have been obtained
-        if self.state == "GOING_TO_TALHER_TRAY" and not (self.got_rice and self.got_beans and self.got_meat and self.got_salad and self.got_talheres):
-            return  # do not change state
-        transitions = {
-        "GOING_TO_RICE_TRAY": "GOING_TO_BROWN_RICE_TRAY",
-        "GOING_TO_BROWN_RICE_TRAY": "GOING_TO_BEANS_TRAY",
-        "GOING_TO_BEANS_TRAY":"GOING_TO_GUARN_TRAY",
-        "GOING_TO_GUARN_TRAY":"GOING_TO_VEG_TRAY",
-        "GOING_TO_VEG_TRAY":"GOING_TO_MEAT_TRAY",
-        "GOING_TO_MEAT_TRAY":"GOING_TO_SAL_TRAY",
-        "GOING_TO_SAL_TRAY":"GOING_TO_TALHER_TRAY",
-        "GOING_TO_TALHER_TRAY":"GOING_TO_JUICE",
-        "GOING_TO_JUICE":"GOING_TO_SPICES",
-        "GOING_TO_SPICES":"GOING_TO_DESSERT",
-        "GOING_TO_DESSERT":"GOING_TO_TABLE",
-        "GOING_TO_TABLE":"EXITING",
+    def _goal_for_tray(self, tray_name):
+        tray_key = tray_name + "s"
+        self.join_queue(tray_key)
+        
+        # Get the nearest tray
+        tray_pos = min(self.model.locations_cache[tray_key], key=lambda pos: manhattan_distance(self.pos, pos))
+        
+        # Check the cell above and below the tray
+        above = (tray_pos[0], tray_pos[1] - 1)
+        below = (tray_pos[0], tray_pos[1] + 1)
+        
+        # If the cell above is empty, return it as the goal
+        if 0 <= above[1] < self.model.height and not any(isinstance(obj, (StudentAgent, StaticAgent)) for obj in self.model.grid.get_cell_list_contents([above])):
+            return above
+        
+        # Otherwise, if the cell below is empty, return it as the goal
+        elif 0 <= below[1] < self.model.height and not any(isinstance(obj, (StudentAgent, StaticAgent)) for obj in self.model.grid.get_cell_list_contents([below])):
+            return below
+        
+        # Default: return the tray position if neither above nor below is available
+        return tray_pos
+
+
+
+    def _goal_for_special_state(self):
+        specific_goals = {
+            "GOING_TO_JUICE": self.get_adjacent_empty_cell(min(self.model.locations_cache['juices'], key=lambda pos: manhattan_distance(self.pos, pos))),
+            "GOING_TO_SPICES": self.get_adjacent_empty_cell(min(self.model.locations_cache['spices'], key=lambda pos: manhattan_distance(self.pos, pos)), directions=['left', 'right']),
+            "GOING_TO_DESSERT": self.get_adjacent_empty_cell(min(self.model.locations_cache['desserts'], key=lambda pos: manhattan_distance(self.pos, pos)), directions=['above', 'right','left']),
+            "GOING_TO_TABLE": self.get_adjacent_empty_cell(self.random.choice(self.model.locations_cache['tables'])),
+            "EXITING": self.get_adjacent_empty_cell(min(self.model.locations_cache['exits'], key=lambda pos: manhattan_distance(self.pos, pos)), directions=['left', 'right']),
         }
-        self.state = transitions.get(self.state, "EXITING")
+        return specific_goals.get(self.state, self.pos)
 
-        if self.state == "EXITING":
-            # Remove agent from the grid and schedule when exiting
-            self.model.grid.remove_agent(self)
-            self.model.schedule.remove(self)
+
+    def get_adjacent_empty_cell(self, target_pos, directions=['above', 'below', 'left', 'right']):
+        x, y = target_pos
+        target_type = self._type_from_state()
+
+        possible_directions = {
+            'above': (x, y-1),
+            'below': (x, y+1),
+            'left': (x-1, y),
+            'right': (x+1, y)
+        }
+
+        for direction, pos in possible_directions.items():
+            if direction in directions and 0 <= pos[0] < self.model.width and 0 <= pos[1] < self.model.height:
+                cell_contents = self.model.grid.get_cell_list_contents([pos])
+                if not cell_contents or (len(cell_contents) == 1 and isinstance(cell_contents[0], StaticAgent) and cell_contents[0].type == target_type):
+                    return pos
+
+        return self.pos  # Default: return the agent's own position if no adjacent cell with the target type found
+
+
+
+    def _type_from_state(self):
+     return self.state.replace("GOING_TO_", "")
+
+    def reached_goal(self, goal):
+        # Verifique as células ao redor da posição atual para encontrar o item
+        neighbors = self.model.grid.get_neighborhood(self.pos, moore=True, include_center=False)
+        item = None
+        for neighbor in neighbors:
+            item_contents = self.model.grid.get_cell_list_contents([neighbor])
+            # Adicione condições para verificar cada tipo de item
+            item = next((agent for agent in item_contents if hasattr(agent, "type") and agent.type in ["Juice", "Dessert", "Spices", "Table","exits"]), None)
+            if item:
+                break
+
+        # Se item for None, verifique bandejas
+        if not item:
+            for neighbor in neighbors:
+                tray_contents = self.model.grid.get_cell_list_contents([neighbor])
+                item = next((agent for agent in tray_contents if hasattr(agent, "type") and "Tray" in agent.type), None)
+                if item:
+                    break
+
+        if not item:
+            return  # Nenhum item ou bandeja encontrada perto do objetivo, saia cedo
+
+        print(f"Agent {self.unique_id} encountered item type: {item.type} in state: {self.state}")
+
+        if item.type == "Juice" and self.state == "GOING_TO_JUICE":
+            self.state = "GOING_TO_SPICES"
+        elif item.type == "Spices" and self.state == "GOING_TO_SPICES":
+            self.state = "GOING_TO_DESSERT"
+        elif item.type == "Dessert" and self.state == "GOING_TO_DESSERT":
+            self.state = "GOING_TO_TABLE"
+        elif item.type == "Table" and self.state == "GOING_TO_TABLE":
+            self.state = "EXITING"
+            print(f"Agent {self.unique_id} state: {self.state}")
+        elif item.type == "exits" and self.state == "EXITING":
+                self.model.grid.remove_agent(self)
+                self.model.schedule.remove(self)
+                self.model.num_students -=1
+                for queue in self.model.tray_queues.values():
+                    if self in queue:
+                        queue.remove(self)
+                        
+        elif "Tray" in item.type:
+            # Lógica ao alcançar a bandeja (Tray)
+            # Se a bandeja estiver vazia, recarregue-a
+            if item.food_count == 0:
+                print(f"Agent {self.unique_id} waiting for refill.")
+                item.refill()
+                self.waiting_time += 1
+                return  # Return after waiting for refill, so the agent tries to get food again in the next step
+
+            # Se houver comida, diminua a contagem e atualize os atributos do agente
+            item.food_count -= 1
+            self.update_food_attributes()
+               
+
+            transitions = {
+                "GOING_TO_RICE_TRAY": "GOING_TO_BROWN_RICE_TRAY",
+                "GOING_TO_BROWN_RICE_TRAY": "GOING_TO_BEANS_TRAY",
+                "GOING_TO_BEANS_TRAY": "GOING_TO_GUARN_TRAY",
+                "GOING_TO_GUARN_TRAY": "GOING_TO_VEG_TRAY",
+                "GOING_TO_VEG_TRAY": "GOING_TO_MEAT_TRAY",
+                "GOING_TO_MEAT_TRAY": "GOING_TO_SAL_TRAY",
+                "GOING_TO_SAL_TRAY": "GOING_TO_TALHER_TRAY",
+                "GOING_TO_TALHER_TRAY": "GOING_TO_JUICE",
+                "GOING_TO_JUICE": "GOING_TO_SPICES",
+                "GOING_TO_SPICES": "GOING_TO_DESSERT",
+                "GOING_TO_DESSERT": "GOING_TO_TABLE",
+                "GOING_TO_TABLE": "EXITING",
+            }
+            self.state = transitions.get(self.state, "EXITING")
+            print(f"Agent {self.unique_id} transitioned to state {self.state}")
+
+          
+            tray_queues = ["rice_trays", "brown_rice_trays",'rice_trays','brown_rice_trays','beans_trays','guarn_trays','veg_trays',
+                'meat_trays','sal_trays','talher_trays']
+            for tray_queue in tray_queues:
+                if self in self.model.tray_queues[tray_queue]:
+                    self.model.tray_queues[tray_queue].remove(self)
+
+            
+               
+
+    def update_food_attributes(self):
+            # This method updates the agent's attributes based on which tray they visited
+            if self.state == "GOING_TO_RICE_TRAY":
+                self.got_rice = True
+            elif self.state == "GOING_TO_BEANS_TRAY":
+                self.got_beans = True  
+            elif self.state == "GOING_TO_MEAT_TRAY":
+                self.got_meat = True
+            elif self.state == "GOING_TO_SAL_TRAY":
+                self.got_salad = True
+            elif self.state == "GOING_TO_TALHER_TRAY":
+                self.got_talheres = True
+
+
+    def join_queue(self, tray_type):
+        queue = self.model.tray_queues[tray_type]
+        if self not in queue:
+            queue.append(self)
 
     def reconstruct_path(self, came_from, current):
         total_path = [current]
@@ -126,13 +278,14 @@ class StudentAgent(Agent):
 
         while open_set:
             current = min(open_set, key=lambda pos: f_score[pos])
-            
+            #print(f"Current: {current}")  
             if current == goal:
                 return self.reconstruct_path(came_from, current)
 
             open_set.remove(current)
             for neighbor in self.model.grid.get_neighborhood(current, moore=False, include_center=False):
-                if not any(isinstance(obj, StaticAgent) and obj.type == CellType.WALL for obj in self.model.grid.get_cell_list_contents([neighbor])):
+                #print(f"Checking neighbor: {neighbor}")  # Add this line to debug the neighbors under consideration
+                if not any(isinstance(obj, StaticAgent) for obj in self.model.grid.get_cell_list_contents([neighbor])):
                     tentative_g_score = g_score[current] + 1
 
                     if tentative_g_score < g_score[neighbor]:
@@ -144,50 +297,33 @@ class StudentAgent(Agent):
 
         return []
 
-
+    
     def step(self):
-        goal = self.determine_goal()
         
-        # Get the content (cell type) at the goal position
-        
-        goal_content = self.model.grid.get_cell_list_contents([goal])
-        if goal_content:
-            target_cell_type = next((content.type for content in goal_content if hasattr(content, 'type')), None)
-        else:
-            target_cell_type = None
+        #print(f"StudentAgent {self.unique_id} is in state {self.state} at position {self.pos}")
+    
+        if not self.current_goal or self.blocked_steps > WAITING_TIME_THRESHOLD:
+            self.current_goal = self.determine_goal()
+            self.current_path = self.a_star_pathfinding(self.pos, self.current_goal)
+            self.blocked_steps = 0
 
-        print(f"Student at position {self.pos}. In state {self.state} trying to go to position {goal} to get to the cell type {target_cell_type}")
-        
-        if self.is_at_goal(goal):
-            self.reached_goal(goal)
+        print(f"Agent {self.unique_id} goal determined: {self.current_goal}")
+            
+
+        neighbors = self.model.grid.get_neighborhood(self.pos, moore=False, include_center=False)
+        free_neighbors = [cell for cell in neighbors if not self.model.grid.is_cell_empty(cell)]
+       
+        if self.is_at_goal(self.current_goal):
+            print(f"Agent {self.unique_id} reached its goal at {self.current_goal}")
+            self.reached_goal(self.current_goal)
+            self.current_goal = None  # Reset the goal after reaching
+            self.current_path = None
         else:
-            self.move_towards(goal)
+            self.move_towards(self.current_goal)
 
             
     def is_at_goal(self, goal):
         return self.pos == goal
-
-
-    
-class StaticAgent(Agent):
- 
-    def __init__(self, unique_id, model, pos_x, pos_y, agent_type, content=None):
-        super().__init__(unique_id, model)
-        self.x = pos_x
-        self.y = pos_y
-        self.type = agent_type
-        # Determine content based on agent type
-        if agent_type == "EMPTY_TRAY":
-            self.content = "EMPTY"
-        elif "Tray" in agent_type:
-            self.content = agent_type.split('_')[0]
-        else:
-            self.content = None
-
-
-def manhattan_distance(pos1, pos2):
-    return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
-
 
 class MovementUtils:
     def __init__(self, model): 

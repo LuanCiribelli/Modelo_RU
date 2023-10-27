@@ -18,7 +18,7 @@ class ModelText(TextElement):
     def render(self, model):
         student_agents = [agent for agent in model.schedule.agents if isinstance(agent, StudentAgent)]
         avg_waiting_time = sum(agent.waiting_time for agent in student_agents) / len(student_agents) if student_agents else 0
-        return f"Current Hour: {model.get_human_readable_time()} | Average Waiting Time: {avg_waiting_time}"
+        return f"Current Hour: {model.get_human_readable_time()} | Average Waiting Time: {avg_waiting_time} | Estudantes: {model.num_students}"
 
 class RestaurantModel(Model):
     AGENT_TYPE_MAPPING = {
@@ -58,6 +58,7 @@ class RestaurantModel(Model):
         self.time = self.hour
         self.error_message = None
         self.next_id = 0
+        self.num_students = 0
         self.filtered_df = filtered_df
         self.locations_cache = {
             'empty_trays': self.find_cell_positions(CellType.EMPTY_TRAY),
@@ -75,6 +76,16 @@ class RestaurantModel(Model):
             'tables': self.find_cell_positions(CellType.TABLE),
             'exits': self.find_cell_positions(CellType.EXIT)
         }
+        self.tray_queues = {
+        'rice_trays': [],
+        'brown_rice_trays': [],
+        'beans_trays': [],
+        'guarn_trays': [],
+        'veg_trays': [],
+        'meat_trays': [],
+        'sal_trays': [],
+        'talher_trays': [],
+    }
         
         for y, row in enumerate(external_grid):
             for x, cell_value in enumerate(row):
@@ -120,12 +131,13 @@ class RestaurantModel(Model):
         return self.next_id
 
     def find_cell_positions(self, cell_type):
-        return [(i, j) for i, row in enumerate(self.external_grid)
+        return [(j, i) for i, row in enumerate(self.external_grid)
                 for j, cell in enumerate(row) if cell == cell_type]
 
     def update_cache(self, cell_type):
         """To be called whenever there's a change in a specific type of cell."""
         self.locations_cache[cell_type] = self.find_cell_positions(cell_type)
+
 
 
     def get_human_readable_time(self):
@@ -136,6 +148,10 @@ class RestaurantModel(Model):
 
 
     def add_new_student(self, catraca_id):
+
+        if self.num_students >= 5:  # <-- Add this check
+            #print("Maximum number of students reached.")
+            return
 
 
         catraca_mapping = {1: (1, 2), 2: (1, 5), 3: (82, 5), 4: (82, 2)}
@@ -149,14 +165,14 @@ class RestaurantModel(Model):
 
         # Check if the chosen entry is empty
         if not self.grid.get_cell_list_contents([chosen_entry]):
-            print(f"Adding student at {chosen_entry}...")
+            #print(f"Adding student at {chosen_entry}...")
             student_id = self.get_next_id()
             student = StudentAgent(student_id, self, *chosen_entry)
             self.grid.place_agent(student, chosen_entry)
             self.schedule.add(student)
+            self.num_students += 1 
         
-        
-        print(f"Trying to add a new student at {chosen_entry}")
+        #print(f"Trying to add a new student at {chosen_entry}")
 
 def agent_portrayal(agent):
     """Defines the visual portrayal of agents in the simulation."""
