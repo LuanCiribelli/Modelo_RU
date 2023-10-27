@@ -5,47 +5,62 @@ from constants import *
 
 
 class StudentAgent(Agent):
-    STATES = ["SEARCHING_TRAY", "GOING_TO_JUICE", "GOING_TO_SPICES", "GOING_TO_DESSERT", "GOING_TO_TABLE", "EXITING"]
+    STATES = ["GOING_TO_RICE_TRAY", "GOING_TO_BROWN_RICE_TRAY","GOING_TO_BEANS_TRAY","GOING_TO_GUARN_TRAY","GOING_TO_VEG_TRAY" ,"GOING_TO_MEAT_TRAY",
+               "GOING_TO_SAL_TRAY","GOING_TO_TALHER_TRAY","GOING_TO_JUICE", "GOING_TO_SPICES", "GOING_TO_DESSERT", "GOING_TO_TABLE", "EXITING"]
     
     def __init__(self, unique_id, model, x, y):
         super().__init__(unique_id, model)
         self.pos = (x, y)
-        self.state = "SEARCHING_TRAY"
+        self.state = "GOING_TO_RICE_TRAY"
         self.waiting_time = 0
         self.blocked_steps = 0
         self.visited_groups = set()
+        self.got_rice = False
+        self.got_beans = False
+        self.got_meat = False
+        self.got_salad = False
+        self.got_talheres = False
     
     def move_towards(self, goal):
-        valid_moves = self.model.movement_utils.valid_moves(self, goal)
-        if valid_moves:
-            best_step = min(valid_moves, key=lambda step: manhattan_distance(step, goal))
-            self.model.grid.move_agent(self, best_step)
-            self.blocked_steps = 0  # Reset blocked_steps if a valid move is found
+        path = self.a_star_pathfinding(self.pos, goal)
+        if path:
+            next_step = path[1]
+            self.model.grid.move_agent(self, next_step)
+            self.blocked_steps = 0
         else:
-            self.blocked_steps += 1  # Increment blocked_steps if no valid move
+            self.blocked_steps += 1
+
 
     def determine_goal(self):
-        if self.state == "SEARCHING_TRAY":
-            tray_coords = self.model.locations_cache['trays']
-            if not tray_coords:
-                return self.pos  # If no trays, remain in position
-            return self.model.movement_utils.nearest(self, CellType.TRAY)
-        elif self.state == "GOING_TO_JUICE":
-            nearest_juice = self.model.movement_utils.nearest(self, CellType.JUICE)
-            return self.get_adjacent_empty_cell(nearest_juice)
-        elif self.state == "GOING_TO_SPICES":
-            spice_coords = self.model.locations_cache['spices']
-            return self.model.movement_utils.nearest(self, CellType.SPICES)
-        elif self.state == "GOING_TO_DESSERT":
-            dessert_coords = self.model.locations_cache['desserts']
-            return self.model.movement_utils.nearest(self, CellType.DESSERT)
-        elif self.state == "GOING_TO_TABLE":
-            table_coords = self.model.locations_cache['tables']
-            return self.random.choice(table_coords)
-        elif self.state == "EXITING":
-            return self.model.movement_utils.nearest_exit(self)
-        else:
-            return self.pos  # Default case if an unknown state
+            if self.state == "GOING_TO_RICE_TRAY":
+                return min(self.model.locations_cache['rice_trays'], key=lambda pos: manhattan_distance(self.pos, pos))
+            elif self.state == "GOING_TO_BROWN_RICE_TRAY":
+                return min(self.model.locations_cache['brown_rice_trays'], key=lambda pos: manhattan_distance(self.pos, pos))
+            elif self.state == "GOING_TO_BEANS_TRAY":
+                return min(self.model.locations_cache['beans_trays'], key=lambda pos: manhattan_distance(self.pos, pos))
+            elif self.state == "GOING_TO_GUARN_TRAY":
+                return min(self.model.locations_cache['guarn_trays'], key=lambda pos: manhattan_distance(self.pos, pos))
+            elif self.state == "GOING_TO_VEG_TRAY":
+                return min(self.model.locations_cache['veg_trays'], key=lambda pos: manhattan_distance(self.pos, pos))
+            elif self.state == "GOING_TO_MEAT_TRAY":
+                return min(self.model.locations_cache['meat_trays'], key=lambda pos: manhattan_distance(self.pos, pos))
+            elif self.state == "GOING_TO_SAL_TRAY":
+                return min(self.model.locations_cache['sal_trays'], key=lambda pos: manhattan_distance(self.pos, pos))
+            elif self.state == "GOING_TO_TALHER_TRAY":
+                return min(self.model.locations_cache['talher_trays'], key=lambda pos: manhattan_distance(self.pos, pos))
+            elif self.state == "GOING_TO_JUICE":
+                nearest_juice = min(self.model.locations_cache['juices'], key=lambda pos: manhattan_distance(self.pos, pos))
+                return self.get_adjacent_empty_cell(nearest_juice)
+            elif self.state == "GOING_TO_SPICES":
+                return min(self.model.locations_cache['spices'], key=lambda pos: manhattan_distance(self.pos, pos))
+            elif self.state == "GOING_TO_DESSERT":
+                return min(self.model.locations_cache['desserts'], key=lambda pos: manhattan_distance(self.pos, pos))
+            elif self.state == "GOING_TO_TABLE":
+                return self.random.choice(self.model.locations_cache['tables'])
+            elif self.state == "EXITING":
+                return min(self.model.locations_cache['exits'], key=lambda pos: manhattan_distance(self.pos, pos))
+            else:
+                return self.pos  # Default case if an unknown state
 
     def get_adjacent_empty_cell(self, target_pos):
         x, y = target_pos
@@ -56,15 +71,36 @@ class StudentAgent(Agent):
                 return cell
         return self.pos  # Default: return the agent's own position if no adjacent empty cell found
 
-
-
-    def reached_goal(self, goal):
+    
+    def reached_goal(self,goal):
+        # Update the boolean values based on current state
+        if self.state == "GOING_TO_RICE_TRAY":
+            self.got_rice = True
+        elif self.state == "GOING_TO_BEANS_TRAY":
+            self.got_beans = True
+        elif self.state == "GOING_TO_MEAT_TRAY":
+            self.got_meat = True
+        elif self.state == "GOING_TO_SAL_TRAY":
+            self.got_salad = True
+        elif self.state == "GOING_TO_TALHER_TRAY":
+            self.got_talheres = True
+            
+        # Only allow transition to juice or further states if all items have been obtained
+        if self.state == "GOING_TO_TALHER_TRAY" and not (self.got_rice and self.got_beans and self.got_meat and self.got_salad and self.got_talheres):
+            return  # do not change state
         transitions = {
-            "SEARCHING_TRAY": "GOING_TO_JUICE",
-            "GOING_TO_JUICE": "GOING_TO_DESSERT",
-            "GOING_TO_DESSERT": "GOING_TO_SPICES",
-            "GOING_TO_SPICES": "GOING_TO_TABLE",
-            "GOING_TO_TABLE": "EXITING"
+        "GOING_TO_RICE_TRAY": "GOING_TO_BROWN_RICE_TRAY",
+        "GOING_TO_BROWN_RICE_TRAY": "GOING_TO_BEANS_TRAY",
+        "GOING_TO_BEANS_TRAY":"GOING_TO_GUARN_TRAY",
+        "GOING_TO_GUARN_TRAY":"GOING_TO_VEG_TRAY",
+        "GOING_TO_VEG_TRAY":"GOING_TO_MEAT_TRAY",
+        "GOING_TO_MEAT_TRAY":"GOING_TO_SAL_TRAY",
+        "GOING_TO_SAL_TRAY":"GOING_TO_TALHER_TRAY",
+        "GOING_TO_TALHER_TRAY":"GOING_TO_JUICE",
+        "GOING_TO_JUICE":"GOING_TO_SPICES",
+        "GOING_TO_SPICES":"GOING_TO_DESSERT",
+        "GOING_TO_DESSERT":"GOING_TO_TABLE",
+        "GOING_TO_TABLE":"EXITING",
         }
         self.state = transitions.get(self.state, "EXITING")
 
@@ -72,6 +108,41 @@ class StudentAgent(Agent):
             # Remove agent from the grid and schedule when exiting
             self.model.grid.remove_agent(self)
             self.model.schedule.remove(self)
+
+    def reconstruct_path(self, came_from, current):
+        total_path = [current]
+        while current in came_from:
+            current = came_from[current]
+            total_path.append(current)
+        return total_path[::-1]  # Return reversed path
+
+    def a_star_pathfinding(self, start, goal):
+        open_set = {start}
+        came_from = {}
+        g_score = {(coords[1][0], coords[1][1]): float('inf') for coords in self.model.grid.coord_iter()}
+        g_score[start] = 0
+        f_score = {(coords[1][0], coords[1][1]): float('inf') for coords in self.model.grid.coord_iter()}
+        f_score[start] = manhattan_distance(start, goal)
+
+        while open_set:
+            current = min(open_set, key=lambda pos: f_score[pos])
+            
+            if current == goal:
+                return self.reconstruct_path(came_from, current)
+
+            open_set.remove(current)
+            for neighbor in self.model.grid.get_neighborhood(current, moore=False, include_center=False):
+                if not any(isinstance(obj, StaticAgent) and obj.type == CellType.WALL for obj in self.model.grid.get_cell_list_contents([neighbor])):
+                    tentative_g_score = g_score[current] + 1
+
+                    if tentative_g_score < g_score[neighbor]:
+                        came_from[neighbor] = current
+                        g_score[neighbor] = tentative_g_score
+                        f_score[neighbor] = g_score[neighbor] + manhattan_distance(neighbor, goal)
+                        if neighbor not in open_set:
+                            open_set.add(neighbor)
+
+        return []
 
 
     def step(self):
@@ -96,31 +167,22 @@ class StudentAgent(Agent):
     def is_at_goal(self, goal):
         return self.pos == goal
 
-    def is_valid_position(self, x, y):
-        return 0 <= x < self.width and 0 <= y < self.height
 
     
 class StaticAgent(Agent):
-    def __init__(self, unique_id, model, x, y, agent_type, content=None):
+ 
+    def __init__(self, unique_id, model, pos_x, pos_y, agent_type, content=None):
         super().__init__(unique_id, model)
-        self.pos = (x, y)
+        self.x = pos_x
+        self.y = pos_y
         self.type = agent_type
-        self.content = content
-        
-        if agent_type == "Bandeja":
-            if content == "vegan":
-                self.portions = VEGAN_TRAY_PORTIONS
-            elif content == "meat":
-                self.portions = MEAT_TRAY_PORTIONS
-            else:
-                self.portions = DEFAULT_TRAY_PORTIONS
+        # Determine content based on agent type
+        if agent_type == "EMPTY_TRAY":
+            self.content = "EMPTY"
+        elif "Tray" in agent_type:
+            self.content = agent_type.split('_')[0]
         else:
-            self.portions = None
-
-AGENT_CLASSES = {
-    "StudentAgent": StudentAgent,
-    "StaticAgent": StaticAgent,
-}
+            self.content = None
 
 
 def manhattan_distance(pos1, pos2):
@@ -141,50 +203,11 @@ class MovementUtils:
 
         return possible_steps
 
-    def is_valid_cell(self, cell_contents):
-        return all(content.type != "Parede" for content in cell_contents if hasattr(content, 'type')) and not any(isinstance(content, StudentAgent) for content in cell_contents)
-
-    def students_around(self, tray):
-        x, y = tray
-        
-        # Assuming the grid is of size grid_width x grid_height
-        grid_width, grid_height = self.model.grid.width, self.model.grid.height
-
-        # Calculate all neighboring locations
-        locations = [(x+i, y+j) for i in [-1, 0, 1] for j in [-1, 0, 1]]
-
-        # Filter locations to only those inside the grid
-        valid_locations = [(x, y) for x, y in locations if 0 <= x < grid_width and 0 <= y < grid_height]
-
-        # Count the number of students in the valid locations
-        
-        return sum(1 for loc in valid_locations if any(isinstance(content, StudentAgent) for content in self.model.grid.get_cell_list_contents([loc])))
-
 
     def nearest(self, agent, target_type):
             x, y = agent.pos
             target_coords = [(i, j) for i, row in enumerate(self.model.external_grid)
                             for j, cell in enumerate(row) if cell == target_type]
-
-            if target_type == CellType.TABLE:
-                # Sort tables by how many student agents are around them.
-                target_coords = sorted(target_coords, key=lambda pos: self.students_around(pos))
-
             return min(target_coords, key=lambda pos: manhattan_distance((x, y), pos))
 
-
-    def nearest_exit(self, agent):
-        return self.nearest(agent, CellType.EXIT)
-
-    def nearest_tray(self, agent):
-        tray_coords = [(i, j) for i, row in enumerate(self.model.external_grid)
-                    for j, cell in enumerate(row) if cell == CellType.TRAY]
-
-        # Sort trays by the number of portions left (in ascending order).
-        sorted_tray_coords = sorted(tray_coords, key=lambda pos: self.model.grid.get_cell_list_contents([pos])[0].portions)
-
-        if not sorted_tray_coords:
-            return None
-
-        return sorted_tray_coords[0]  # return the tray with the most portions left.
-
+    
