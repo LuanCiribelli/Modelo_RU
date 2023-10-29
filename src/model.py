@@ -4,7 +4,6 @@ from mesa.space import MultiGrid
 from mesa.visualization.modules import TextElement
 from mesa.datacollection import DataCollector
 
-from datetime import datetime
 
 from mapa.mapa_RU import CellType
 from constants import *
@@ -38,7 +37,7 @@ class RestaurantModel(Model):
         CellType.MEAT_TRAY: 'Meat_Tray',
         CellType.SAL_TRAY: 'Sal_Tray',
         CellType.TALHER_TRAY: 'Talher_Tray',
-    }
+    }  
 
     def __init__(self, external_grid, day, meal, hour, filtered_df):        
         self.height = len(external_grid)
@@ -182,7 +181,13 @@ def agent_portrayal(agent):
         elif agent.model.error_message:
             color = "red"
         else:
-            color = "blue"
+            # Adjusting color based on diet preference
+            if agent.diet == "vegan":
+                color = "green"
+            elif agent.diet == "meat_eater":
+                color = "blue"
+            else:
+                color = "blue"  # Default color if diet is neither vegan nor meat_eater
         return {
             "Shape": "circle",
             "Color": color,
@@ -190,47 +195,47 @@ def agent_portrayal(agent):
             "Layer": 0,
             "r": 0.5
         }
-    else:  # This covers all other types of agents, including trays.
-         tray_colors = {
-        "Rice": "pink",
-        "Brown": "brown",
-        "Beans": "black",
-        "Guarn": "blue",
-        "Veg": "purple",
-        "Meat": "red",
-        "Sal": "yellow",
-        "Talher": "orange",
-        "EMPTY": "green"
-    }
-    shape_colors = {
-        "Turnstile": "gray",
-        "Wall": "black",
-        "Exit": "red",
-        "Juice": "blue",
-        "Spices": "purple",
-        "Dessert": "gold",
-        "Table": "#766c6a",
-        "EMPTY_TRAY": tray_colors["EMPTY"]  # This line ensures that empty trays get the green color
-    }
-
-    # Assigning color for trays based on their content
-    if "Tray" in agent.type and agent.content:
-        return {
-            "Shape": "rect",
-            "Color": tray_colors.get(agent.content, "green"),
-            "Filled": "true",
-            "Layer": 1,
-            "w": 1,
-            "h": 1
-        }
-
-    # Assigning color for other static agents
     else:
-        return {
-            "Shape": "rect",
-            "Color": shape_colors.get(agent.type, "green"),
-            "Filled": "true",
-            "Layer": 1,
-            "w": 1,
-            "h": 1
+        tray_colors = {
+            "Rice": "pink",
+            "Brown": "brown",
+            "Beans": "black",
+            "Guarn": "blue",
+            "Veg": "purple",
+            "Meat": "red",
+            "Sal": "yellow",
+            "Talher": "orange",
+            "EMPTY": "green"
         }
+        shape_colors = {
+            "Turnstile": "gray",
+            "Wall": "black",
+            "Exit": "red",
+            "Juice": "blue",
+            "Spices": "purple",
+            "Dessert": "gold",
+            "Table": "#766c6a",
+            "EMPTY_TRAY": tray_colors["EMPTY"]
+        }
+
+        # Assigning color for trays based on their content
+        if "Tray" in agent.type and agent.content:
+            return {
+                "Shape": "rect",
+                "Color": tray_colors.get(agent.content, "green"),
+                "Filled": "true",
+                "Layer": 1,
+                "w": 1,
+                "h": 1
+            }
+
+        # Assigning color for other static agents
+        else:
+            return {
+                "Shape": "rect",
+                "Color": shape_colors.get(agent.type, "green"),
+                "Filled": "true",
+                "Layer": 1,
+                "w": 1,
+                "h": 1
+            }
