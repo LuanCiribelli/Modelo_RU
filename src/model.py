@@ -4,7 +4,6 @@ from mesa.space import MultiGrid
 from mesa.visualization.modules import TextElement
 from mesa.datacollection import DataCollector
 
-
 from mapa.mapa_RU import CellType
 from constants import *
 from agents import StudentAgent, StaticAgent, MovementUtils
@@ -78,17 +77,6 @@ class RestaurantModel(Model):
             'tables': self.find_cell_positions(CellType.TABLE),
             'exits': self.find_cell_positions(CellType.EXIT)
         }
-        self.tray_queues = {
-            'rice_trays': [],
-            'brown_rice_trays': [],
-            'beans_trays': [],
-            'guarn_trays': [],
-            'veg_trays': [],
-            'meat_trays': [],
-            'sal_trays': [],
-            'talher_trays': [],
-        }
-
         for y, row in enumerate(external_grid):
             for x, cell_value in enumerate(row):
                 if cell_value in self.AGENT_TYPE_MAPPING:
@@ -171,6 +159,35 @@ class RestaurantModel(Model):
             self.num_students += 1
 
         print(f"Trying to add a new student at {chosen_entry}")
+
+    def get_free_tables(self, student_pos):
+        tables = []
+        for table in self.locations_cache['tables']  :
+            if self.is_table_free(table, student_pos):
+                tables.append(table)
+        return tables
+
+    def is_table_free(self, table, student_pos):
+        left_cell = (table[0] - 1, table[1])
+        right_cell = (table[0] + 1, table[1])
+
+        if self.is_cell_empty(left_cell, student_pos):
+            return True
+        if self.is_cell_empty(right_cell, student_pos):
+            return True
+
+        return False
+
+    def is_cell_empty(self, cell, excluding_agent=None):
+        x, y = cell  # Unpack the cell coordinates here
+        cell_contents = self.grid.get_cell_list_contents([(x, y)])
+        if excluding_agent is not None:
+            cell_contents = [
+                agent for agent in cell_contents if agent is not excluding_agent]
+
+        return not any(cell_contents)
+
+
 
 
 def agent_portrayal(agent):

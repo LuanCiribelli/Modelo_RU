@@ -17,9 +17,10 @@ Objetivos:
 from mesa import Agent
 import random
 from mapa.paths import PATHS_CATRACAS
-from constants import DEFAULT_TRAY_PORTIONS, WAITING_TIME_THRESHOLD, TRAY_INTERACTION_TIME
+from constants import DEFAULT_TRAY_PORTIONS, WAITING_TIME_THRESHOLD, TRAY_INTERACTION_TIME,TABLE_INTERACTION_TIME
 from mapa.mapa_RU import CellType
 from mesa.space import MultiGrid
+import math as mt
 
 CATRACA_MAPPING = {1: (18, 2), 2: (18, 4), 3: (99, 2), 4: (99, 4)}
 CATRACA_MAPPING_ALTERNATIVE_COORDS = {
@@ -63,10 +64,12 @@ class StudentAgent(Agent):
         self.current_goal = None
         self.current_path = None
         self.interaction_timer = 0
+        self.terminou_path = False
+        self.ta_na_mesa = False
+        self.interaction_table_timer = -1
         self.tray_interaction_target = None
         self.move_attempts = []
         self.path_occupancy = {}
-        self._initialize_food_attributes()
         self._initialize_preferences()
         self.determine_catraca_id()
 
@@ -74,13 +77,7 @@ class StudentAgent(Agent):
         self.diet = random.choice(["vegan", "meat_eater", "no_meat_or_veg"])
         self.rice_type = random.choice(["rice", "brown_rice", "no_rice"])
 
-    def _initialize_food_attributes(self):
-        self.got_rice = False
-        self.got_beans = False
-        self.got_meat = False
-        self.got_salad = False
-        self.got_talheres = False
-
+    
     def check_tray_interaction(self):
         x, y = self.pos
         upper_cell = (x, y - 1)
@@ -92,10 +89,10 @@ class StudentAgent(Agent):
         # print(f'Lower: {lower_tray} upper {upper_tray}')
 
         if upper_tray:
-            self.interaction_timer = TRAY_INTERACTION_TIME
+            
             self.set_tray_interaction_target(upper_tray)
         elif lower_tray:
-            self.interaction_timer = TRAY_INTERACTION_TIME
+
             self.set_tray_interaction_target(lower_tray)
         else:
             # No tray to interact with, continue moving
@@ -107,12 +104,33 @@ class StudentAgent(Agent):
         return tray.type if tray else None
 
     def set_tray_interaction_target(self, tray_type):
-        if self.diet == "vegan" and tray_type == 'Veg_Tray':
-            self.tray_interaction_target = 'Veg_Tray'
-        elif self.diet == "meat_eater" and tray_type == 'Meat_Tray':
-            self.tray_interaction_target = 'Meat_Tray'
+        if self.diet == "vegan":
+            if tray_type == 'Veg_Tray':
+                self.tray_interaction_target = 'Veg_Tray'
+                self.interaction_timer = TRAY_INTERACTION_TIME
+           
+        elif self.diet == "meat_eater":
+            if tray_type == 'Meat_Tray':
+                self.tray_interaction_target = 'Meat_Tray'
+                self.interaction_timer = TRAY_INTERACTION_TIME
+        
+        else:   
+                 self.tray_interaction_target = 'Sal_Tray'
+
+        if self.rice_type == "brown_rice":
+            if tray_type == 'Brown_Rice_Tray':
+                self.tray_interaction_target = 'brown_rice'
+                self.interaction_timer = TRAY_INTERACTION_TIME  
+        elif self.rice_type == "rice":
+            if tray_type == 'Rice_Tray':
+                self.tray_interaction_target = 'Rice_Tray'
+                self.interaction_timer = TRAY_INTERACTION_TIME          
         else:
-            self.tray_interaction_target = tray_type
+            self.tray_interaction_target = 'Beans_Tray'
+
+        if tray_type != 'Meat_Tray' and tray_type != 'Veg_Tray' and tray_type != 'Rice_Tray' and tray_type != 'Brown_Rice_Tray':
+                self.tray_interaction_target = tray_type
+                self.interaction_timer = TRAY_INTERACTION_TIME
 
     def _choose_empty_path(self):
         self.update_path_occupancy()
@@ -166,9 +184,9 @@ class StudentAgent(Agent):
                 else:
                     print(
                         f"Agent {self.unique_id} has reached the end of path {self.current_path}")
+                    self.terminou_path = True
             else:
-                print(
-                    f"Agent {self.unique_id} has no more steps to follow in path {self.current_path}")
+                print(f"Agent {self.unique_id} has no more steps to follow in path {self.current_path}")
         else:
             print(f"Agent {self.unique_id} has no current path to follow.")
 
@@ -176,12 +194,73 @@ class StudentAgent(Agent):
         if not self.current_path:
             self.current_path = self._choose_empty_path()
         else:
-            if self.interaction_timer > 0:
+            if self.terminou_path:
+                if self.interaction_table_timer != -1:
+                        self.interaction_table_timer -= -1
+                        if self.interaction_table_timer == -1:
+                            self.model.student_number -= 1
+                            self.model.schedule.remove(self)
+                            self.model.grid.remove_agent(self)
+                else:
+                    table = self.find_nearest_free_table()
+                    if table:
+                        self.teleport_to_table(table)
+            elif self.interaction_timer > 0:
                 self.interaction_timer -= 1
             elif self.interaction_timer == 0:
                 self.check_tray_interaction()
                 self.move_to_next_step()
+                
             
+    def find_nearest_free_table(self):
+        tables = self.model.get_free_tables(self.pos)
+        if tables:
+            nearest_table = self.find_nearest_table(tables)
+            if nearest_table:
+                self.set_table_interaction_target(nearest_table)
+                return nearest_table
+
+    def find_nearest_table(self, tables):
+        if tables:
+            min_distance = float('inf')
+            nearest_table = None
+
+            for table in tables:
+                distance = self.calculate_distance(self.pos, table)
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_table = table
+
+            return nearest_table
+        else:
+            return None
+
+    def set_table_interaction_target(self, table):
+        self.table_interaction_target = table
+        self.interaction_table_timer = TABLE_INTERACTION_TIME
+
+    
+    def teleport_to_table(self, table):
+        x, y = self.pos
+        
+        possible_moves = [(table[0] + dx, table[1]) for dx in [-1, 1]]
+
+        for move in possible_moves:
+            if self.model.is_cell_empty(move, self.pos):
+                self.model.grid.move_agent(self, move)
+                self.ta_na_mesa = True
+                return
+
+        
+        new_table = self.find_nearest_free_table()
+        if new_table:
+            self.teleport_to_table(self, new_table)
+
+
+    def calculate_distance(self, pos1, pos2):
+        x1, y1 = pos1
+        x2, y2 = pos2
+        return mt.floor(mt.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2))
 
 class MovementUtils:
     def __init__(self, model):
