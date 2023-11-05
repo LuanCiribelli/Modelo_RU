@@ -15,9 +15,12 @@ class ModelText(TextElement):
         pass
 
     def render(self, model):
-        student_agents = [agent for agent in model.schedule.agents if isinstance(agent, StudentAgent)]
-        avg_waiting_time = sum(agent.waiting_time for agent in student_agents) / len(student_agents) if student_agents else 0
+        student_agents = [
+            agent for agent in model.schedule.agents if isinstance(agent, StudentAgent)]
+        avg_waiting_time = sum(agent.waiting_time for agent in student_agents) / \
+            len(student_agents) if student_agents else 0
         return f"Current Hour: {model.get_human_readable_time()} | Average Waiting Time: {avg_waiting_time} | Estudantes: {model.num_students}"
+
 
 class RestaurantModel(Model):
     AGENT_TYPE_MAPPING = {
@@ -37,9 +40,9 @@ class RestaurantModel(Model):
         CellType.MEAT_TRAY: 'Meat_Tray',
         CellType.SAL_TRAY: 'Sal_Tray',
         CellType.TALHER_TRAY: 'Talher_Tray',
-    }  
+    }
 
-    def __init__(self, external_grid, day, meal, hour, filtered_df):        
+    def __init__(self, external_grid, day, meal, hour, filtered_df):
         self.height = len(external_grid)
         self.width = len(external_grid[0])
         self.external_grid = external_grid
@@ -76,16 +79,16 @@ class RestaurantModel(Model):
             'exits': self.find_cell_positions(CellType.EXIT)
         }
         self.tray_queues = {
-        'rice_trays': [],
-        'brown_rice_trays': [],
-        'beans_trays': [],
-        'guarn_trays': [],
-        'veg_trays': [],
-        'meat_trays': [],
-        'sal_trays': [],
-        'talher_trays': [],
-    }
-        
+            'rice_trays': [],
+            'brown_rice_trays': [],
+            'beans_trays': [],
+            'guarn_trays': [],
+            'veg_trays': [],
+            'meat_trays': [],
+            'sal_trays': [],
+            'talher_trays': [],
+        }
+
         for y, row in enumerate(external_grid):
             for x, cell_value in enumerate(row):
                 if cell_value in self.AGENT_TYPE_MAPPING:
@@ -98,7 +101,6 @@ class RestaurantModel(Model):
         current_time = self.get_human_readable_time()
         print(f"Step method called! Current time: {current_time}")
 
-
         # If there is an error message, stop the simulation.
         if self.error_message:
             print(self.error_message)
@@ -110,7 +112,7 @@ class RestaurantModel(Model):
         # Add a new student on the first step or every 8 steps.
         matching_rows = self.filtered_df[self.filtered_df['seconds_from_start'] == self.time]
         for _, row in matching_rows.iterrows():
-         self.add_new_student(catraca_id=row['IDCatraca'])
+            self.add_new_student(catraca_id=row['IDCatraca'])
 
         self.datacollector.collect(self)
         '''
@@ -125,6 +127,7 @@ class RestaurantModel(Model):
         if not any(isinstance(agent, StudentAgent) for agent in self.schedule.agents):
             self.running = False
         '''
+
     def get_next_id(self):
         self.next_id += 1
         return self.next_id
@@ -137,41 +140,38 @@ class RestaurantModel(Model):
         """To be called whenever there's a change in a specific type of cell."""
         self.locations_cache[cell_type] = self.find_cell_positions(cell_type)
 
-
-
     def get_human_readable_time(self):
         hours = self.time // 3600
         minutes = (self.time % 3600) // 60
         seconds = self.time % 60
         return f"{hours:02}:{minutes:02}:{seconds:02}"
 
-
     def add_new_student(self, catraca_id):
 
         if self.num_students >= 5:  # <-- Add this check
-            #print("Maximum number of students reached.")
+            # print("Maximum number of students reached.")
             return
 
-
-        catraca_mapping = {1: (1, 2), 2: (1, 5), 3: (82, 5), 4: (82, 2)}
-        entry_coords = [(1, 2), (1, 5), (82, 5), (82, 2)]
+        catraca_mapping = {1: (18, 2), 2: (18, 4), 3: (99, 2), 4: (99, 4)}
+        entry_coords = [(18, 2), (18, 4), (99, 2), (99, 4)]
 
         chosen_entry = catraca_mapping.get(catraca_id)
         if not chosen_entry:
-            print(f"Warning: Catraca ID {catraca_id} not found in mapping. Choosing random entry.")
+            print(
+                f"Warning: Catraca ID {catraca_id} not found in mapping. Choosing random entry.")
             chosen_entry = self.random.choice(entry_coords)
-
 
         # Check if the chosen entry is empty
         if not self.grid.get_cell_list_contents([chosen_entry]):
-            #print(f"Adding student at {chosen_entry}...")
+            print(f"Adding student at {chosen_entry}...")
             student_id = self.get_next_id()
             student = StudentAgent(student_id, self, *chosen_entry)
             self.grid.place_agent(student, chosen_entry)
             self.schedule.add(student)
-            self.num_students += 1 
-        
-        #print(f"Trying to add a new student at {chosen_entry}")
+            self.num_students += 1
+
+        print(f"Trying to add a new student at {chosen_entry}")
+
 
 def agent_portrayal(agent):
     """Defines the visual portrayal of agents in the simulation."""

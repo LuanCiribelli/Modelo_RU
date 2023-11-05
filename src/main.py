@@ -26,9 +26,9 @@ if __name__ == "__main__":
     # Adjusting grid dimensions for better visualization
 
     # Get user input from the command line
-    desired_day = '2023-01-05' #input("Enter the day (e.g., 2023-01-05): ")
-    desired_meal = 'Almoco' #input("Enter the meal (e.g., Almoco): ")
-    desired_hour =  '11:00'  #input("Enter the hour (e.g., 12:00): ") 
+    desired_day = '2023-01-05'#input("Enter the day (e.g., 2023-01-05): ")
+    desired_meal = 'Almoco'#input("Enter the meal (e.g., Almoco): ")
+    desired_hour = '11:00'  #input("Enter the hour (e.g., 12:00): ") 
 
     filtered_df = DATAFRAME[
         (DATAFRAME['Entrada'].dt.date == datetime.strptime(desired_day, '%Y-%m-%d').date()) & 
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     filtered_df['seconds_from_start'] = filtered_df['Entrada'].dt.hour * 3600 + filtered_df['Entrada'].dt.minute * 60 + filtered_df['Entrada'].dt.second
     filtered_df = filtered_df.sort_values(by='seconds_from_start')
 
-    grid = CanvasGrid(agent_portrayal, len(external_grid[0]), len(external_grid),800,1600)
+    grid = CanvasGrid(agent_portrayal, len(external_grid[0]), len(external_grid),1000,600)
     model_cls = RestaurantModel
     server = ModularServer(model_cls, [grid, model_text], "University Restaurant Model", 
                        {"external_grid": external_grid, "day": desired_day, "meal": desired_meal, "hour": desired_hour, "filtered_df": filtered_df})
