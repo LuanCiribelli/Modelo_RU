@@ -148,7 +148,7 @@ class RestaurantModel(Model):
 
     def add_new_student(self, catraca_id):
 
-        if self.num_students >= 5:  # <-- Add this check
+        if self.num_students >= 100:  # <-- Add this check
             # print("Maximum number of students reached.")
             return
 
