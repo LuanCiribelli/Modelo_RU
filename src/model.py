@@ -18,7 +18,7 @@ class ModelText(TextElement):
             agent for agent in model.schedule.agents if isinstance(agent, StudentAgent)]
         avg_waiting_time = sum(agent.waiting_time for agent in student_agents) / \
             len(student_agents) if student_agents else 0
-        return f"Current Hour: {model.get_human_readable_time()}  | Estudantes: {model.num_students}"
+        return f"Current Hour: {model.get_human_readable_time()}  | Estudantes: {model.num_students} |  Tempo de espera medio: {avg_waiting_time} | "
 
 
 class RestaurantModel(Model):

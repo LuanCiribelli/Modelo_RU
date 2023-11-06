@@ -142,29 +142,35 @@ class StudentAgent(Agent):
                 if len(path_coordinates) > self.steps_visited:
                     next_step = path_coordinates[self.steps_visited]
                     x, y = next_step
-                    next_step_occupied = any(agent.pos == (
-                        x, y) for agent in self.model.schedule.agents)
+                    next_step_occupied = any(agent.pos == (x, y) for agent in self.model.schedule.agents)
+                    
+                    # Calculate the number of steps for 1-meter movement (adjust based on your grid)
+                    steps_per_meter = 1
+                    
                     if not next_step_occupied:
-                        self.model.grid.move_agent(self, (x, y))
-                        self.move_attempts.append({
-                            "from": self.pos,
-                            "to": (x, y),
-                        })
-
-                        if self.pos == (x, y):
+                        # Check if it's time to move (every 3 seconds)
+                        if self.blocked_steps % 3 == 0:
+                            self.model.grid.move_agent(self, (x, y))
+                            self.move_attempts.append({
+                                "from": self.pos,
+                                "to": (x, y),
+                            })
+                            
                             self.steps_visited += 1
                             self.blocked_steps = 0
                         else:
                             self.blocked_steps += 1
+                    else:
+                        self.blocked_steps += 1
                 else:
-                    print(
-                        f"Agent {self.unique_id} has reached the end of path {self.current_path}")
+                    print(f"Agent {self.unique_id} has reached the end of path {self.current_path}")
                     self.terminou_path = True
             else:
-                print(
-                    f"Agent {self.unique_id} has no more steps to follow in path {self.current_path}")
+                print(f"Agent {self.unique_id} has no more steps to follow in path {self.current_path}")
         else:
             print(f"Agent {self.unique_id} has no current path to follow.")
+
+
 
     def step(self):
         if not self.current_path:
@@ -183,7 +189,9 @@ class StudentAgent(Agent):
                         self.teleport_to_table(table)
             elif self.interaction_timer > 0:
                 self.interaction_timer -= 1
+                self.waiting_time += 1
             elif self.interaction_timer == 0:
+                self.waiting_time += 1
                 self.check_tray_interaction()
                 self.move_to_next_step()
 
