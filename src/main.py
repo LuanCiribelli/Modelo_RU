@@ -14,7 +14,7 @@ from model import RestaurantModel, ModelText, agent_portrayal
 from mapa.mapa_RU import GridConfig
 from mesa.visualization.modules import CanvasGrid
 from datetime import datetime
-import pandas as pd
+import pandas as pd 
 
 DATAFRAME = pd.read_csv('../logentrada.csv')
 # Convert 'Entrada' to datetime
@@ -26,9 +26,9 @@ if __name__ == "__main__":
     # Adjusting grid dimensions for better visualization
 
     # Get user input from the command line
-    desired_day = input("Enter the day (e.g., 2023-01-05): ")
-    desired_meal = input("Enter the meal (e.g., Almoco): ")
-    desired_hour = input("Enter the hour (e.g., 12:00): ") 
+    desired_day ='2023-01-05' #input("Enter the day (e.g., 2023-01-05): ")
+    desired_meal ='Almoco' #input("Enter the meal (e.g., Almoco): ")
+    desired_hour ='12:00' #input("Enter the hour (e.g., 12:00): ") 
 
     filtered_df = DATAFRAME[
         (DATAFRAME['Entrada'].dt.date == datetime.strptime(desired_day, '%Y-%m-%d').date()) & 

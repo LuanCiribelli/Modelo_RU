@@ -7,8 +7,7 @@ from mesa.space import MultiGrid
 import math as mt
 
 CATRACA_MAPPING = {1: (18, 2), 2: (18, 4), 3: (99, 2), 4: (99, 4)}
-CATRACA_MAPPING_ALTERNATIVE_COORDS = {
-    1: (2, 18), 2: (4, 18), 3: (2, 99), 4: (4, 99)}
+
 TRAY_TYPES = {'Rice_tray', 'Brown_Rice_Tray', 'Beans_Tray',
               'Guarn_Tray', 'Veg_Tray', 'Meat_Tray', 'Sal_Tray', 'Talher_Tray'}
 
@@ -191,26 +190,12 @@ class StudentAgent(Agent):
     def find_nearest_free_table(self):
         tables = self.model.get_free_tables(self.pos)
         if tables:
-            nearest_table = self.find_nearest_table(tables)
-            if nearest_table:
-                self.set_table_interaction_target(nearest_table)
-                return nearest_table
+            chossen_table = random.choice(tables)
+            if chossen_table:
+                self.set_table_interaction_target(chossen_table)
+                return chossen_table
 
-    def find_nearest_table(self, tables):
-        if tables:
-            min_distance = float('inf')
-            nearest_table = None
-
-            for table in tables:
-                distance = self.calculate_distance(self.pos, table)
-                if distance < min_distance:
-                    min_distance = distance
-                    nearest_table = table
-
-            return nearest_table
-        else:
-            return None
-
+   
     def set_table_interaction_target(self, table):
         self.table_interaction_target = table
         self.interaction_table_timer = TABLE_INTERACTION_TIME

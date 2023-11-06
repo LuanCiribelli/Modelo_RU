@@ -124,7 +124,7 @@ class RestaurantModel(Model):
 
     def add_new_student(self, catraca_id):
 
-        if self.num_students >= 100:
+        if self.num_students >= 10000:
             return
 
         catraca_mapping = {1: (18, 2), 2: (18, 4), 3: (99, 2), 4: (99, 4)}
