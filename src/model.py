@@ -18,7 +18,7 @@ class ModelText(TextElement):
             agent for agent in model.schedule.agents if isinstance(agent, StudentAgent)]
         avg_waiting_time = sum(agent.waiting_time for agent in student_agents) / \
             len(student_agents) if student_agents else 0
-        return f"Current Hour: {model.get_human_readable_time()} | Average Waiting Time: {avg_waiting_time} | Estudantes: {model.num_students}"
+        return f"Current Hour: {model.get_human_readable_time()}  | Estudantes: {model.num_students}"
 
 
 class RestaurantModel(Model):
@@ -103,18 +103,6 @@ class RestaurantModel(Model):
             self.add_new_student(catraca_id=row['IDCatraca'])
 
         self.datacollector.collect(self)
-        '''
-        # Check if all students are blocked.
-        all_students_blocked = all([student.blocked_steps >= MAX_BLOCKED_STEPS for student in self.schedule.agents if isinstance(student, StudentAgent)])
-        if all_students_blocked:
-            self.error_message = "Error, all students blocked, model stopped"
-            print(self.error_message)
-            return
-    
-        # If there are no more StudentAgents, stop the simulation.
-        if not any(isinstance(agent, StudentAgent) for agent in self.schedule.agents):
-            self.running = False
-        '''
 
     def get_next_id(self):
         self.next_id += 1
@@ -136,8 +124,7 @@ class RestaurantModel(Model):
 
     def add_new_student(self, catraca_id):
 
-        if self.num_students >= 100:  # <-- Add this check
-            # print("Maximum number of students reached.")
+        if self.num_students >= 100:
             return
 
         catraca_mapping = {1: (18, 2), 2: (18, 4), 3: (99, 2), 4: (99, 4)}
@@ -149,7 +136,6 @@ class RestaurantModel(Model):
                 f"Warning: Catraca ID {catraca_id} not found in mapping. Choosing random entry.")
             chosen_entry = self.random.choice(entry_coords)
 
-        # Check if the chosen entry is empty
         if not self.grid.get_cell_list_contents([chosen_entry]):
             print(f"Adding student at {chosen_entry}...")
             student_id = self.get_next_id()
@@ -162,7 +148,7 @@ class RestaurantModel(Model):
 
     def get_free_tables(self, student_pos):
         tables = []
-        for table in self.locations_cache['tables']  :
+        for table in self.locations_cache['tables']:
             if self.is_table_free(table, student_pos):
                 tables.append(table)
         return tables
@@ -179,15 +165,13 @@ class RestaurantModel(Model):
         return False
 
     def is_cell_empty(self, cell, excluding_agent=None):
-        x, y = cell  # Unpack the cell coordinates here
+        x, y = cell
         cell_contents = self.grid.get_cell_list_contents([(x, y)])
         if excluding_agent is not None:
             cell_contents = [
                 agent for agent in cell_contents if agent is not excluding_agent]
 
         return not any(cell_contents)
-
-
 
 
 def agent_portrayal(agent):
@@ -198,13 +182,12 @@ def agent_portrayal(agent):
         elif agent.model.error_message:
             color = "red"
         else:
-            # Adjusting color based on diet preference
             if agent.diet == "vegan":
                 color = "green"
             elif agent.diet == "meat_eater":
                 color = "blue"
             else:
-                color = "blue"  # Default color if diet is neither vegan nor meat_eater
+                color = "blue"
         return {
             "Shape": "circle",
             "Color": color,
@@ -235,7 +218,6 @@ def agent_portrayal(agent):
             "EMPTY_TRAY": tray_colors["EMPTY"]
         }
 
-        # Assigning color for trays based on their content
         if "Tray" in agent.type and agent.content:
             return {
                 "Shape": "rect",
@@ -245,8 +227,6 @@ def agent_portrayal(agent):
                 "w": 1,
                 "h": 1
             }
-
-        # Assigning color for other static agents
         else:
             return {
                 "Shape": "rect",

@@ -1,23 +1,7 @@
-'''
-Classe de agentes
-
-Objetivos: 
-        - Criar varios tipos de staticAgents que interagem de maneiras variadas com o Estudante
-        - Criar o agente do tipo estudante, esse agente é gerado na classe 'Modelo.py' com base no agente gerado aqui e tem alguns possiveis paths com base de onde foi gerado (ver em paths.pyy)
-        - O estudante deve sempre escolher os caminhos mais vazios
-        - Os estudantes tem diferentes preferencias alimentares e devem interagir com: Bandejas, sucos, sobremesas e temperros com base nessas preferencias
-        - As preferencias devem ser geradas aleatoriamente com base em parametros ajustaveis
-        - Os estudantes ao chegarem na saida devem deixar o modelo
-        - O estudante deve interagir com os staticAgents que representam suas preferencias alimentares e devem esperar uma quantidade de tempo ajustavel para cada interação
-        - Estudantes enquanto interagem ficarão parados e os estudantes no mesmo path que eles tbm irão ficar parado em formatos de fila
-        - A ordem de interação sera: 'surgiu na catraca', 'se move até o arroz ou arroz integral', se move e/ou ao feijão, e/ou a guarnição e/ou a proteina dependendo sua preferencia, vai para os sucos, temperos,sobremesa,mesa e saida
-'''
-
-
 from mesa import Agent
 import random
 from mapa.paths import PATHS_CATRACAS
-from constants import DEFAULT_TRAY_PORTIONS, WAITING_TIME_THRESHOLD, TRAY_INTERACTION_TIME,TABLE_INTERACTION_TIME
+from constants import DEFAULT_TRAY_PORTIONS, WAITING_TIME_THRESHOLD, TRAY_INTERACTION_TIME, TABLE_INTERACTION_TIME
 from mapa.mapa_RU import CellType
 from mesa.space import MultiGrid
 import math as mt
@@ -27,7 +11,6 @@ CATRACA_MAPPING_ALTERNATIVE_COORDS = {
     1: (2, 18), 2: (4, 18), 3: (2, 99), 4: (4, 99)}
 TRAY_TYPES = {'Rice_tray', 'Brown_Rice_Tray', 'Beans_Tray',
               'Guarn_Tray', 'Veg_Tray', 'Meat_Tray', 'Sal_Tray', 'Talher_Tray'}
-
 
 class StaticAgent(Agent):
     def __init__(self, unique_id, model, pos_x, pos_y, agent_type):
@@ -50,7 +33,6 @@ class StaticAgent(Agent):
         if "Tray" in self.type:
             self.food_count = DEFAULT_TRAY_PORTIONS
             print(f"Refilled {self.type} at position {self.x}, {self.y}")
-
 
 class StudentAgent(Agent):
     def __init__(self, unique_id, model, x, y):
@@ -77,7 +59,6 @@ class StudentAgent(Agent):
         self.diet = random.choice(["vegan", "meat_eater", "no_meat_or_veg"])
         self.rice_type = random.choice(["rice", "brown_rice", "no_rice"])
 
-    
     def check_tray_interaction(self):
         x, y = self.pos
         upper_cell = (x, y - 1)
@@ -86,16 +67,11 @@ class StudentAgent(Agent):
         upper_tray = self.check_tray_type(upper_cell)
         lower_tray = self.check_tray_type(lower_cell)
 
-        # print(f'Lower: {lower_tray} upper {upper_tray}')
-
         if upper_tray:
-            
             self.set_tray_interaction_target(upper_tray)
         elif lower_tray:
-
             self.set_tray_interaction_target(lower_tray)
         else:
-            # No tray to interact with, continue moving
             self.move_to_next_step()
 
     def check_tray_type(self, cell):
@@ -108,29 +84,29 @@ class StudentAgent(Agent):
             if tray_type == 'Veg_Tray':
                 self.tray_interaction_target = 'Veg_Tray'
                 self.interaction_timer = TRAY_INTERACTION_TIME
-           
+
         elif self.diet == "meat_eater":
             if tray_type == 'Meat_Tray':
                 self.tray_interaction_target = 'Meat_Tray'
                 self.interaction_timer = TRAY_INTERACTION_TIME
-        
-        else:   
-                 self.tray_interaction_target = 'Sal_Tray'
+
+        else:
+            self.tray_interaction_target = 'Sal_Tray'
 
         if self.rice_type == "brown_rice":
             if tray_type == 'Brown_Rice_Tray':
                 self.tray_interaction_target = 'brown_rice'
-                self.interaction_timer = TRAY_INTERACTION_TIME  
+                self.interaction_timer = TRAY_INTERACTION_TIME
         elif self.rice_type == "rice":
             if tray_type == 'Rice_Tray':
                 self.tray_interaction_target = 'Rice_Tray'
-                self.interaction_timer = TRAY_INTERACTION_TIME          
+                self.interaction_timer = TRAY_INTERACTION_TIME
         else:
             self.tray_interaction_target = 'Beans_Tray'
 
         if tray_type != 'Meat_Tray' and tray_type != 'Veg_Tray' and tray_type != 'Rice_Tray' and tray_type != 'Brown_Rice_Tray':
-                self.tray_interaction_target = tray_type
-                self.interaction_timer = TRAY_INTERACTION_TIME
+            self.tray_interaction_target = tray_type
+            self.interaction_timer = TRAY_INTERACTION_TIME
 
     def _choose_empty_path(self):
         self.update_path_occupancy()
@@ -186,7 +162,8 @@ class StudentAgent(Agent):
                         f"Agent {self.unique_id} has reached the end of path {self.current_path}")
                     self.terminou_path = True
             else:
-                print(f"Agent {self.unique_id} has no more steps to follow in path {self.current_path}")
+                print(
+                    f"Agent {self.unique_id} has no more steps to follow in path {self.current_path}")
         else:
             print(f"Agent {self.unique_id} has no current path to follow.")
 
@@ -196,11 +173,11 @@ class StudentAgent(Agent):
         else:
             if self.terminou_path:
                 if self.interaction_table_timer != -1:
-                        self.interaction_table_timer -= -1
-                        if self.interaction_table_timer == -1:
-                            self.model.student_number -= 1
-                            self.model.schedule.remove(self)
-                            self.model.grid.remove_agent(self)
+                    self.interaction_table_timer -= 1
+                    if self.interaction_table_timer == -1:
+                        self.model.num_students -= 1
+                        self.model.schedule.remove(self)
+                        self.model.grid.remove_agent(self)
                 else:
                     table = self.find_nearest_free_table()
                     if table:
@@ -210,8 +187,7 @@ class StudentAgent(Agent):
             elif self.interaction_timer == 0:
                 self.check_tray_interaction()
                 self.move_to_next_step()
-                
-            
+
     def find_nearest_free_table(self):
         tables = self.model.get_free_tables(self.pos)
         if tables:
@@ -239,10 +215,9 @@ class StudentAgent(Agent):
         self.table_interaction_target = table
         self.interaction_table_timer = TABLE_INTERACTION_TIME
 
-    
     def teleport_to_table(self, table):
         x, y = self.pos
-        
+
         possible_moves = [(table[0] + dx, table[1]) for dx in [-1, 1]]
 
         for move in possible_moves:
@@ -251,11 +226,9 @@ class StudentAgent(Agent):
                 self.ta_na_mesa = True
                 return
 
-        
         new_table = self.find_nearest_free_table()
         if new_table:
             self.teleport_to_table(self, new_table)
-
 
     def calculate_distance(self, pos1, pos2):
         x1, y1 = pos1
