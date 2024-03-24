@@ -127,6 +127,7 @@ class RestaurantModel(Model):
         if self.num_students >= 10000:
             return
 
+        
         catraca_mapping = {1: (18, 2), 2: (18, 4), 3: (99, 2), 4: (99, 4)}
         entry_coords = [(18, 2), (18, 4), (99, 2), (99, 4)]
 

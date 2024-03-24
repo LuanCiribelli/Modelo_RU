@@ -113,6 +113,7 @@ class StudentAgent(Agent):
         valid_paths = [path for path in self.path_occupancy.keys() if str(
             path).startswith(catraca_id_str)]
         if not valid_paths:
+            print('Student found no valid path! FIX THIS URGENT')
             return None
         min_occupancy = min(self.path_occupancy[path] for path in valid_paths)
         least_occupied_paths = [
@@ -144,7 +145,7 @@ class StudentAgent(Agent):
                     x, y = next_step
                     next_step_occupied = any(agent.pos == (x, y) for agent in self.model.schedule.agents)
                     
-                    # Calculate the number of steps for 1-meter movement (adjust based on your grid)
+                    # Calculate the number of steps for 1-meter movement 
                     steps_per_meter = 1
                     
                     if not next_step_occupied:
@@ -159,8 +160,11 @@ class StudentAgent(Agent):
                             self.steps_visited += 1
                             self.blocked_steps = 0
                         else:
-                            self.blocked_steps += 1
+                            self.blocked_steps += 1 
+                            
                     else:
+                        if self.pos == (99, 2):
+                                print(f'\n  ESTUDANTE PRESO na posição {x,y} com path {self.current_path} e com nextstep {next_step}\n')
                         self.blocked_steps += 1
                 else:
                     print(f"Agent {self.unique_id} has reached the end of path {self.current_path}")
