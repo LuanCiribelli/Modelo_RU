@@ -15,12 +15,22 @@ from mapa.mapa_RU import GridConfig
 from mesa.visualization.modules import CanvasGrid
 from datetime import datetime
 import pandas as pd 
+from pathlib import Path
 
 DATAFRAME = pd.read_csv('../logentrada.csv')
 # Convert 'Entrada' to datetime
 DATAFRAME['Entrada'] = pd.to_datetime(DATAFRAME['Entrada'])
 
 if __name__ == "__main__":
+
+    df = pd.DataFrame([{"Current Hour": 0  , "Estudantes": 0 ,  "Tempo de espera medio": 0}])
+    
+
+    my_file = Path("../logsaida.csv")
+    if not my_file.is_file():
+       df.to_csv("../logsaida.csv")
+
+
     external_grid = GridConfig.get_grid()
     model_text = ModelText()
     # Adjusting grid dimensions for better visualization

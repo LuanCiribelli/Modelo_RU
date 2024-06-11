@@ -7,6 +7,7 @@ from mesa.datacollection import DataCollector
 from mapa.mapa_RU import CellType
 from constants import *
 from agents import StudentAgent, StaticAgent, MovementUtils
+import pandas as pd 
 
 
 class ModelText(TextElement):
@@ -18,6 +19,10 @@ class ModelText(TextElement):
             agent for agent in model.schedule.agents if isinstance(agent, StudentAgent)]
         avg_waiting_time = sum(agent.waiting_time for agent in student_agents) / \
             len(student_agents) if student_agents else 0
+        
+        df = pd.DataFrame([{"Current Hour": model.get_human_readable_time()  , "Estudantes": model.num_students ,  "Tempo de espera medio": avg_waiting_time}])
+        df.to_csv('../logsaida.csv', mode='a', index=False, header=False)
+
         return f"Current Hour: {model.get_human_readable_time()}  | Estudantes: {model.num_students} |  Tempo de espera medio: {avg_waiting_time} | "
 
 
