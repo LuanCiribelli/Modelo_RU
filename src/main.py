@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # Get user input from the command line
     desired_day ='2023-01-05' #input("Enter the day (e.g., 2023-01-05): ")
     desired_meal ='Almoco' #input("Enter the meal (e.g., Almoco): ")
-    desired_hour ='12:15' #input("Enter the hour (e.g., 12:00): ") 
+    desired_hour ='11:00' #input("Enter the hour (e.g., 12:00): ") 
 
     filtered_df = DATAFRAME[
         (DATAFRAME['Entrada'].dt.date == datetime.strptime(desired_day, '%Y-%m-%d').date()) & 

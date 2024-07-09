@@ -17,13 +17,14 @@ class ModelText(TextElement):
     def render(self, model):
         student_agents = [
             agent for agent in model.schedule.agents if isinstance(agent, StudentAgent)]
-        avg_waiting_time = sum(agent.waiting_time for agent in student_agents) / \
-            len(student_agents) if student_agents else 0
-        
-        df = pd.DataFrame([{"Current Hour": model.get_human_readable_time()  , "Estudantes": model.num_students ,  "Tempo de espera medio": avg_waiting_time}])
+        sitting_times = [agent.sit_time - agent.entry_time for agent in student_agents if agent.sit_time is not None]
+        avg_sitting_time = (sum(sitting_times) / len(sitting_times) if sitting_times else 0) / 60  # Convertendo para minutos
+
+        df = pd.DataFrame([{"Current Hour": model.get_human_readable_time(), "Estudantes": model.num_students, "Tempo médio para sentar (minutos)": avg_sitting_time}])
         df.to_csv('../logsaida.csv', mode='a', index=False, header=False)
 
-        return f"Current Hour: {model.get_human_readable_time()}  | Estudantes: {model.num_students} |  Tempo de espera medio: {avg_waiting_time} | "
+        return f"Current Hour: {model.get_human_readable_time()}  | Estudantes: {model.num_students} |  Tempo médio para sentar: {avg_sitting_time:.2f} minutos | "
+
 
 
 class RestaurantModel(Model):
@@ -54,6 +55,9 @@ class RestaurantModel(Model):
         self.steps_since_last_student = 0
         self.datacollector = DataCollector({
             "Average_Waiting_Time": lambda m: sum([agent.waiting_time for agent in m.schedule.agents if isinstance(agent, StudentAgent)]) / (len([agent for agent in m.schedule.agents if isinstance(agent, StudentAgent)]) or 1)
+        })
+        self.datacollector = DataCollector({
+            "Average_Sitting_Time_Minutes": lambda m: (sum([agent.sit_time - agent.entry_time for agent in m.schedule.agents if isinstance(agent, StudentAgent) and agent.sit_time is not None]) / (len([agent for agent in m.schedule.agents if isinstance(agent, StudentAgent) and agent.sit_time is not None]) or 1)) / 60
         })
 
         self.grid = MultiGrid(self.width, self.height, True)
@@ -92,6 +96,8 @@ class RestaurantModel(Model):
     def step(self):
         """Defines the action taken in each time step of the simulation."""
         current_time = self.get_human_readable_time()
+        self.datacollector.collect(self)
+
         print(f"Step method called! Current time: {current_time}")
 
         # If there is an error message, stop the simulation.

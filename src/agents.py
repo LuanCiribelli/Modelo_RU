@@ -41,6 +41,8 @@ class StudentAgent(Agent):
         self.waiting_time = 0
         self.blocked_steps = 0
         self.steps_visited = 0
+        self.entry_time = model.schedule.steps
+        self.sit_time = None
         self.visited_groups = set()
         self.current_goal = None
         self.current_path = None
@@ -191,13 +193,15 @@ class StudentAgent(Agent):
                     table = self.find_nearest_free_table()
                     if table:
                         self.teleport_to_table(table)
+                        if self.sit_time is None:  # Registrar o tempo de sentar
+                            self.sit_time = self.model.schedule.steps
             elif self.interaction_timer > 0:
                 self.interaction_timer -= 1
                 self.waiting_time += 1
             elif self.interaction_timer == 0:
                 self.waiting_time += 1
                 self.check_tray_interaction()
-                self.move_to_next_step()
+                self.move_to_next_step() 
 
     def find_nearest_free_table(self):
         tables = self.model.get_free_tables(self.pos)
