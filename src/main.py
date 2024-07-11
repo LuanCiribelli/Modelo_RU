@@ -11,11 +11,13 @@
 
 from mesa.visualization.ModularVisualization import ModularServer
 from model import RestaurantModel, ModelText, agent_portrayal
+from model import now
 from mapa.mapa_RU import GridConfig
 from mesa.visualization.modules import CanvasGrid
 from datetime import datetime
 import pandas as pd 
 from pathlib import Path
+import datetime as date
 
 DATAFRAME = pd.read_csv('../logentrada.csv')
 # Convert 'Entrada' to datetime
@@ -25,10 +27,13 @@ if __name__ == "__main__":
 
     df = pd.DataFrame([{"Current Hour": 0  , "Estudantes": 0 ,  "Tempo de espera medio": 0}])
     
+    
 
-    my_file = Path("../logsaida.csv")
+   
+
+    my_file = Path(f"../logsaida_{now}.csv")
     if not my_file.is_file():
-       df.to_csv("../logsaida.csv")
+       df.to_csv(f"../logsaida_{now}.csv")
 
 
     external_grid = GridConfig.get_grid()

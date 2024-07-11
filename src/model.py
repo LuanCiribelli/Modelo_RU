@@ -7,8 +7,11 @@ from mesa.datacollection import DataCollector
 from mapa.mapa_RU import CellType
 from constants import *
 from agents import StudentAgent, StaticAgent, MovementUtils
+import datetime as date
+from datetime import datetime
 import pandas as pd 
 
+now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 class ModelText(TextElement):
     def __init__(self):
@@ -21,7 +24,7 @@ class ModelText(TextElement):
         avg_sitting_time = (sum(sitting_times) / len(sitting_times) if sitting_times else 0) / 60  # Convertendo para minutos
 
         df = pd.DataFrame([{"Current Hour": model.get_human_readable_time(), "Estudantes": model.num_students, "Tempo médio para sentar (minutos)": avg_sitting_time}])
-        df.to_csv('../logsaida.csv', mode='a', index=False, header=False)
+        df.to_csv(f"../logsaida_{now}.csv", mode='a', index=False, header=False)
 
         return f"Current Hour: {model.get_human_readable_time()}  | Estudantes: {model.num_students} |  Tempo médio para sentar: {avg_sitting_time:.2f} minutos | "
 
